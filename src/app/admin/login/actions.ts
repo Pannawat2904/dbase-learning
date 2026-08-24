@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/utils/supabase/server'
 import { signAdminCookie } from '@/utils/auth/admin'
+import { logAccessEvent } from '@/utils/audit-logger'
 
 export async function loginTeacher(formData: FormData) {
   const username = (formData.get('username') as string || '').trim();
@@ -62,6 +63,16 @@ export async function loginTeacher(formData: FormData) {
       cookieStore.delete('teacher_avatar');
     }
 
+    // Record Access Log
+    await logAccessEvent({
+      studentId: user?.id,
+      userName: teacherName,
+      email: teacherUsername + '@lms.teacher',
+      role: isFallback ? 'admin' : 'teacher',
+      event: 'login',
+      details: 'ครูผู้สอนเข้าสู่ระบบสำเร็จ'
+    });
+
     redirect('/admin');
   } else {
     redirect('/admin/login?error=' + encodeURIComponent('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'));
@@ -70,6 +81,19 @@ export async function loginTeacher(formData: FormData) {
 
 export async function logoutTeacher() {
   const cookieStore = await cookies();
+  const rawTeacherName = cookieStore.get('teacher_name')?.value;
+  const rawTeacherUsername = cookieStore.get('teacher_username')?.value;
+  const teacherName = rawTeacherName ? decodeURIComponent(rawTeacherName) : 'ครูผู้สอน';
+  const teacherUsername = rawTeacherUsername ? decodeURIComponent(rawTeacherUsername) : 'teacher';
+
+  await logAccessEvent({
+    userName: teacherName,
+    email: teacherUsername + '@lms.teacher',
+    role: 'teacher',
+    event: 'logout',
+    details: 'ครูผู้สอนออกจากระบบ'
+  });
+
   cookieStore.delete('teacher_auth');
   cookieStore.delete('teacher_id');
   cookieStore.delete('teacher_name');

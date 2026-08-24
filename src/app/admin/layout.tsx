@@ -14,7 +14,9 @@ import {
   MessageSquare,
   Bot,
   UserCog,
-  User
+  User,
+  Star,
+  History
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logoutTeacher } from "./login/actions";
@@ -81,6 +83,8 @@ export default function AdminLayout({
     { name: "จัดการนักเรียน", href: "/admin/students", icon: Users },
     { name: "จัดการครูผู้สอน", href: "/admin/teachers", icon: UserCog, hideForTeacher: true },
     { name: "ตรวจงานและข้อสอบ", href: "/admin/grading", icon: BookOpen },
+    { name: "ประเมินความพึงพอใจ", href: "/admin/evaluation", icon: Star },
+    { name: "ประวัติการเข้าใช้งาน", href: "/admin/access-logs", icon: History },
     { name: "กล่องข้อความ", href: "/admin/inbox", icon: MessageSquare },
     { name: "ประวัติคุยกับ AI", href: "/admin/ai-logs", icon: Bot },
     { name: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
@@ -170,9 +174,12 @@ export default function AdminLayout({
                pathname.includes('/courses/') ? 'จัดการเนื้อหาบทเรียน' : 
                pathname.includes('/courses') ? 'จัดการบทเรียน' : 
                pathname.includes('/students') ? 'จัดการนักเรียน' : 
-               pathname.includes('/students') ? 'จัดการนักเรียน' :
+               pathname.includes('/teachers') ? 'จัดการครูผู้สอน' :
                pathname.includes('/grading') ? 'ตรวจงานและข้อสอบ' : 
+               pathname.includes('/evaluation') ? 'ประเมินความพึงพอใจ' :
+               pathname.includes('/access-logs') ? 'ประวัติการเข้าใช้งาน' :
                pathname.includes('/inbox') ? 'กล่องข้อความ' : 
+               pathname.includes('/ai-logs') ? 'ประวัติคุยกับ AI' :
                pathname.includes('/settings') ? 'ตั้งค่าระบบ' : 
                'ระบบจัดการผู้สอน'}
             </h2>

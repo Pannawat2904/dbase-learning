@@ -86,7 +86,29 @@ export async function loginWithGoogle() {
     redirect('/login?error=Could not initiate Google login')
   }
 
-  if (data.url) {
+  if (data?.url) {
     redirect(data.url)
   }
+}
+
+export async function signout() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (user) {
+    const { logAccessEvent } = await import('@/utils/audit-logger')
+    const fullName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'นักเรียน'
+    await logAccessEvent({
+      studentId: user.id,
+      userName: fullName,
+      email: user.email || '-',
+      role: 'student',
+      event: 'logout',
+      details: 'นักเรียนออกจากระบบ'
+    })
+  }
+
+  await supabase.auth.signOut()
+  revalidatePath('/', 'layout')
+  redirect('/login')
 }

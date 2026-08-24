@@ -27,6 +27,18 @@ export async function GET(request: Request) {
             return NextResponse.redirect(`${origin}/login?error=อนุญาตเฉพาะอีเมลของสถานศึกษาเท่านั้น`)
           }
         }
+
+        // Log student login event
+        const { logAccessEvent } = await import('@/utils/audit-logger');
+        const fullName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
+        await logAccessEvent({
+          studentId: user.id,
+          userName: fullName,
+          email: user.email,
+          role: 'student',
+          event: 'login',
+          details: 'นักเรียนเข้าสู่ระบบสำเร็จ (Google OAuth)'
+        });
       }
       return NextResponse.redirect(`${origin}${next}`)
     }

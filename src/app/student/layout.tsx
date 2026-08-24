@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, BookOpen, GraduationCap, User, Bell, Search, Menu, LogOut, Moon, Sun, MessageSquare, ChevronLeft, ChevronRight, Sparkles, Bot } from "lucide-react";
+import { LayoutDashboard, BookOpen, GraduationCap, User, Bell, Search, Menu, LogOut, Moon, Sun, MessageSquare, ChevronLeft, ChevronRight, Sparkles, Bot, Star } from "lucide-react";
 import NotificationBell from "@/components/student/NotificationBell";
 import { createClient } from '@/utils/supabase/client';
 import { useTheme } from "next-themes";
@@ -121,9 +121,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   }, []);
 
   const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error(e);
+    }
     const supabase = createClient();
     await supabase.auth.signOut();
-    window.location.href = '/';
+    window.location.href = '/login';
   };
 
   // Handle scroll for Topbar blur effect
@@ -140,6 +145,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { name: "บทเรียนทั้งหมด", href: "/student/courses", icon: BookOpen },
     { name: "กล่องข้อความ", href: "/student/messages", icon: MessageSquare },
     { name: "ใบรับรอง", href: "/student/certificates", icon: GraduationCap },
+    { name: "ประเมินความพึงพอใจ", href: "/student/evaluation", icon: Star },
     { name: "Gemini AI", href: "https://gemini.google.com/gem/15dbYiItlbBm0ftGwv7afznqbZbTypamH?usp=sharing", icon: Bot, external: true },
     { name: "โปรไฟล์", href: "/student/profile", icon: User },
   ];

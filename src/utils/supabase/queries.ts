@@ -1024,3 +1024,313 @@ export async function getAllStudentAssignments() {
   }
   return data;
 }
+
+// ----------------------------------------------------
+// SATISFACTION SURVEY FUNCTIONS
+// ----------------------------------------------------
+
+export async function getSurveyConfig(): Promise<{ isOpen: boolean; updatedAt?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('student_scores')
+      .select('*')
+      .eq('exam_type', 'survey_config')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (data && data.length > 0) {
+      const answers = (data[0].answers as any) || {};
+      return {
+        isOpen: Boolean(answers.is_open),
+        updatedAt: data[0].created_at
+      };
+    }
+    return { isOpen: false };
+  } catch (error) {
+    console.error('Error in getSurveyConfig:', error);
+    return { isOpen: false };
+  }
+}
+
+export async function updateSurveyConfig(isOpen: boolean): Promise<boolean> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+    
+    // Insert new config state record
+    const { error } = await supabase.from('student_scores').insert([
+      {
+        student_id: '00000000-0000-0000-0000-000000000000',
+        course_id: '1',
+        lesson_id: '1',
+        exam_type: 'survey_config',
+        score: isOpen ? 1 : 0,
+        total_score: 1,
+        status: isOpen ? 'open' : 'closed',
+        answers: {
+          is_open: isOpen,
+          updated_at: new Date().toISOString()
+        }
+      }
+    ]);
+
+    if (error) {
+      console.error('Error updating survey config:', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error in updateSurveyConfig:', error);
+    return false;
+  }
+}
+
+export async function getStudentSurveySubmission(studentId: string) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('student_scores')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('exam_type', 'satisfaction_survey')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      return { submitted: false, submission: null };
+    }
+
+    return {
+      submitted: true,
+      submission: {
+        id: data[0].id,
+        score: data[0].score,
+        answers: data[0].answers,
+        createdAt: data[0].created_at
+      }
+    };
+  } catch (error) {
+    console.error('Error in getStudentSurveySubmission:', error);
+    return { submitted: false, submission: null };
+  }
+}
+
+export async function submitSatisfactionSurvey(studentId: string, payload: {
+  ratings: Record<string, number>;
+  dimensionScores: Record<string, number>;
+  suggestions: string;
+  overallAverage: number;
+}) {
+  try {
+    const supabase = await createClient();
+    
+    // Check if already submitted
+    const existing = await getStudentSurveySubmission(studentId);
+    if (existing.submitted) {
+      return { success: false, message: 'คุณได้ส่งแบบประเมินความพึงพอใจไปแล้ว' };
+    }
+
+    const { error } = await supabase.from('student_scores').insert([
+      {
+        student_id: studentId,
+        course_id: '1',
+        lesson_id: '1',
+        exam_type: 'satisfaction_survey',
+        score: Number(payload.overallAverage.toFixed(2)),
+        total_score: 5,
+        status: 'submitted',
+        answers: {
+          ratings: payload.ratings,
+          dimensionScores: payload.dimensionScores,
+          suggestions: payload.suggestions,
+          overallAverage: payload.overallAverage,
+          submitted_at: new Date().toISOString()
+        }
+      }
+    ]);
+
+    if (error) {
+      console.error('Error submitting survey:', error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in submitSatisfactionSurvey:', error);
+    return { success: false, message: error.message || 'เกิดข้อผิดพลาดในการบันทึก' };
+  }
+}
+
+export async function getSurveyAnalytics() {
+  try {
+    const supabase = await createClient();
+    
+    // 1. Get all survey submissions
+    const [
+      { data: responses, error: respError },
+      { data: profiles },
+      config
+    ] = await Promise.all([
+      supabase.from('student_scores').select('*').eq('exam_type', 'satisfaction_survey').order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, full_name, email').eq('role', 'student'),
+      getSurveyConfig()
+    ]);
+
+    const totalStudents = profiles?.length || 0;
+    const totalRespondents = responses?.length || 0;
+
+    if (respError || !responses || responses.length === 0) {
+      return {
+        isOpen: config.isOpen,
+        totalStudents,
+        totalRespondents: 0,
+        responseRate: 0,
+        overallMean: 0,
+        overallSD: 0,
+        overallQuality: 'ยังไม่มีข้อมูล',
+        dimensionStats: {},
+        itemStats: {},
+        suggestions: [],
+        respondentsList: []
+      };
+    }
+
+    // Helper functions for statistics
+    const calculateStats = (numbers: number[]) => {
+      if (numbers.length === 0) return { mean: 0, sd: 0 };
+      const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+      const variance = numbers.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (numbers.length > 1 ? numbers.length - 1 : 1);
+      const sd = numbers.length > 1 ? Math.sqrt(variance) : 0;
+      return {
+        mean: Number(mean.toFixed(2)),
+        sd: Number(sd.toFixed(2))
+      };
+    };
+
+    const getQualityLabel = (mean: number) => {
+      if (mean >= 4.50) return { text: 'มากที่สุด', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400' };
+      if (mean >= 3.50) return { text: 'มาก', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400' };
+      if (mean >= 2.50) return { text: 'ปานกลาง', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400' };
+      if (mean >= 1.50) return { text: 'น้อย', color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/30 dark:text-orange-400' };
+      return { text: 'น้อยที่สุด', color: 'text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400' };
+    };
+
+    // Aggregate item ratings and dimension scores
+    const allOverallScores: number[] = [];
+    const itemRatingsMap: Record<string, number[]> = {};
+    const dimensionRatingsMap: Record<string, number[]> = {};
+    const suggestionsList: Array<{ name: string; text: string; date: string }> = [];
+
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+    const respondentsList = responses.map(r => {
+      const ans = (r.answers as any) || {};
+      const student = profileMap.get(r.student_id);
+      const score = Number(r.score || ans.overallAverage || 0);
+      allOverallScores.push(score);
+
+      if (ans.ratings) {
+        Object.entries(ans.ratings).forEach(([itemId, val]) => {
+          if (!itemRatingsMap[itemId]) itemRatingsMap[itemId] = [];
+          itemRatingsMap[itemId].push(Number(val));
+        });
+      }
+
+      if (ans.dimensionScores) {
+        Object.entries(ans.dimensionScores).forEach(([dimId, val]) => {
+          if (!dimensionRatingsMap[dimId]) dimensionRatingsMap[dimId] = [];
+          dimensionRatingsMap[dimId].push(Number(val));
+        });
+      }
+
+      if (ans.suggestions && ans.suggestions.trim()) {
+        suggestionsList.push({
+          name: student?.full_name || 'นักเรียน',
+          text: ans.suggestions.trim(),
+          date: new Date(r.created_at).toLocaleDateString('th-TH', {
+            timeZone: 'Asia/Bangkok',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+          })
+        });
+      }
+
+      return {
+        id: r.id,
+        studentId: r.student_id,
+        name: student?.full_name || 'นักเรียน',
+        email: student?.email || '-',
+        score,
+        quality: getQualityLabel(score).text,
+        submittedAt: new Date(r.created_at).toLocaleDateString('th-TH', {
+          timeZone: 'Asia/Bangkok',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+    });
+
+    const overallStats = calculateStats(allOverallScores);
+    const overallQuality = getQualityLabel(overallStats.mean);
+
+    const dimensionStats: Record<string, { mean: number; sd: number; quality: string; qualityColor: string }> = {};
+    Object.entries(dimensionRatingsMap).forEach(([dimId, vals]) => {
+      const st = calculateStats(vals);
+      const q = getQualityLabel(st.mean);
+      dimensionStats[dimId] = {
+        mean: st.mean,
+        sd: st.sd,
+        quality: q.text,
+        qualityColor: q.color
+      };
+    });
+
+    const itemStats: Record<string, { mean: number; sd: number; quality: string; qualityColor: string }> = {};
+    Object.entries(itemRatingsMap).forEach(([itemId, vals]) => {
+      const st = calculateStats(vals);
+      const q = getQualityLabel(st.mean);
+      itemStats[itemId] = {
+        mean: st.mean,
+        sd: st.sd,
+        quality: q.text,
+        qualityColor: q.color
+      };
+    });
+
+    return {
+      isOpen: config.isOpen,
+      totalStudents,
+      totalRespondents,
+      responseRate: totalStudents > 0 ? Math.round((totalRespondents / totalStudents) * 100) : 0,
+      overallMean: overallStats.mean,
+      overallSD: overallStats.sd,
+      overallQuality: overallQuality.text,
+      overallQualityColor: overallQuality.color,
+      dimensionStats,
+      itemStats,
+      suggestions: suggestionsList,
+      respondentsList
+    };
+  } catch (error) {
+    console.error('Error in getSurveyAnalytics:', error);
+    return {
+      isOpen: false,
+      totalStudents: 0,
+      totalRespondents: 0,
+      responseRate: 0,
+      overallMean: 0,
+      overallSD: 0,
+      overallQuality: '-',
+      dimensionStats: {},
+      itemStats: {},
+      suggestions: [],
+      respondentsList: []
+    };
+  }
+}
+
