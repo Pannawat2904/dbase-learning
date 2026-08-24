@@ -49,6 +49,7 @@ export const metadata: Metadata = {
 };
 
 import { ConfirmDialogContainer } from "@/components/ui/ConfirmDialog";
+import NavigationLoader from "@/components/ui/NavigationLoader";
 
 export default function RootLayout({
   children,
@@ -68,6 +69,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <NavigationLoader />
           {children}
           <Toaster richColors position="top-center" />
           <ConfirmDialogContainer />

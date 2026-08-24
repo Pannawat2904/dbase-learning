@@ -1,6 +1,13 @@
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+
 export default function DashboardLoading() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-pulse">
+      {/* Loading Spinner Indicator */}
+      <div className="flex items-center justify-center py-4">
+        <LoadingSpinner label="กำลังโหลดข้อมูลแดชบอร์ด..." size="md" />
+      </div>
+
       {/* Header Skeleton */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-2">
