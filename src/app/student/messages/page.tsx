@@ -175,11 +175,13 @@ export default function StudentMessagesPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="พิมพ์ข้อความที่นี่..."
+              aria-label="พิมพ์ข้อความถึงคุณครู"
               className="flex-1 px-5 py-4 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-slate-700 dark:text-slate-200 shadow-sm transition-all text-sm md:text-base"
             />
             <button 
               type="submit"
               disabled={!newMessage.trim() || isSending}
+              aria-label="ส่งข้อความ"
               className="w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95"
             >
               {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6 ml-1" />}

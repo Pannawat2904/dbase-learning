@@ -7,6 +7,7 @@ import { getCourseWithCurriculum, getStudentScores, getStudentProgress } from "@
 import { createClient } from "@/utils/supabase/client";
 import QuizInterface from "@/components/student/QuizInterface";
 import AssignmentSubmission from "@/components/student/AssignmentSubmission";
+import { toast } from "sonner";
 
 type LessonType = 'slide' | 'video_worksheet' | 'test' | 'quiz' | 'assignment';
 
@@ -67,7 +68,7 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
         if (error) {
           console.error('saveProgress error:', error.message || error);
           if (error.code === '42501' || error.message?.includes('security policy')) {
-            alert('บันทึกข้อมูลไม่สำเร็จ: กรุณารันคำสั่ง SQL ที่แนะนำใน Supabase เพื่อปลดล็อกสิทธิ์ (RLS) ครับ');
+            toast.error('บันทึกข้อมูลไม่สำเร็จ: กรุณารันคำสั่ง SQL ที่แนะนำใน Supabase เพื่อปลดล็อกสิทธิ์ (RLS) ครับ');
           }
         }
       }
@@ -219,7 +220,7 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
   const navigateToLesson = (lessonId: string | number) => {
     // Check if locked due to pre-test
     if (preTestId && !hasCompletedPreTest && lessonId.toString() !== preTestId) {
-      alert("กรุณาทำแบบทดสอบก่อนเรียน (Pre-test) ให้เสร็จสิ้นก่อนเข้าสู่บทเรียนถัดไปครับ");
+      toast.warning("กรุณาทำแบบทดสอบก่อนเรียน (Pre-test) ให้เสร็จสิ้นก่อนเข้าสู่บทเรียนถัดไปครับ");
       return;
     }
 
@@ -389,7 +390,7 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
                         key={lesson.id}
                         onClick={() => {
                           if (isExamActive) {
-                            alert('กรุณาทำข้อสอบให้เสร็จสิ้นก่อนเปลี่ยนบทเรียนครับ');
+                            toast.warning('กรุณาทำข้อสอบให้เสร็จสิ้นก่อนเปลี่ยนบทเรียนครับ');
                             return;
                           }
                           if (!isLocked) {

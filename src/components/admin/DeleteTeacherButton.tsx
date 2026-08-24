@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Trash2, Loader2, AlertTriangle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { deleteAdminUser } from "@/utils/supabase/queries";
+import { toast } from "sonner";
 
 export default function DeleteTeacherButton({ id, name }: { id: string, name: string }) {
   const router = useRouter();
@@ -16,10 +17,11 @@ export default function DeleteTeacherButton({ id, name }: { id: string, name: st
     setIsDeleting(false);
     
     if (result) {
+      toast.success("ลบบัญชีครูผู้สอนเรียบร้อยแล้ว");
       setIsOpen(false);
       router.refresh();
     } else {
-      alert("เกิดข้อผิดพลาดในการลบบัญชี");
+      toast.error("เกิดข้อผิดพลาดในการลบบัญชี");
     }
   };
 
@@ -43,6 +45,7 @@ export default function DeleteTeacherButton({ id, name }: { id: string, name: st
               </div>
               <button 
                 onClick={() => setIsOpen(false)}
+                aria-label="ปิดหน้าต่างยืนยันการลบบัญชี"
                 className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               >
                 <X className="w-4 h-4" />

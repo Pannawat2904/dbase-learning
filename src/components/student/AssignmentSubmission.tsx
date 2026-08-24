@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Upload, File, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getStudentAssignments, submitAssignment, saveStudentProgress } from "@/utils/supabase/queries";
+import { toast } from "sonner";
 
 export default function AssignmentSubmission({ lesson, courseId }: { lesson: any, courseId: string }) {
   const [file, setFile] = useState<File | null>(null);
@@ -31,7 +32,7 @@ export default function AssignmentSubmission({ lesson, courseId }: { lesson: any
 
   const handleUpload = async () => {
     if (!file || !studentId) {
-      alert("กรุณาเลือกไฟล์ก่อนส่งงานครับ");
+      toast.warning("กรุณาเลือกไฟล์ก่อนส่งงานครับ");
       return;
     }
 
@@ -46,7 +47,7 @@ export default function AssignmentSubmission({ lesson, courseId }: { lesson: any
       .upload(filePath, file);
 
     if (uploadError) {
-      alert(`เกิดข้อผิดพลาดในการอัปโหลดไฟล์: ${uploadError.message}`);
+      toast.error(`เกิดข้อผิดพลาดในการอัปโหลดไฟล์: ${uploadError.message}`);
       setIsUploading(false);
       return;
     }
@@ -63,13 +64,13 @@ export default function AssignmentSubmission({ lesson, courseId }: { lesson: any
       // Mark this lesson as progressed/completed
       await saveStudentProgress(studentId, courseId, lesson.id.toString());
       
-      alert("ส่งงานเรียบร้อยแล้วครับ!");
+      toast.success("ส่งงานเรียบร้อยแล้วครับ!");
       const assignments = await getStudentAssignments(studentId, lesson.id.toString());
       if (assignments && assignments.length > 0) {
         setSubmittedAssignment(assignments[0]);
       }
     } else {
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูลการส่งงาน");
+      toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูลการส่งงาน");
     }
     setIsUploading(false);
   };

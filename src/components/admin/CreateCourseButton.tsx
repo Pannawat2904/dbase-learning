@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, X, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createCourse } from "@/utils/supabase/queries";
+import { toast } from "sonner";
 
 export default function CreateCourseButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,10 +22,11 @@ export default function CreateCourseButton() {
     setIsSubmitting(false);
 
     if (newCourse) {
+      toast.success("สร้างบทเรียนสำเร็จ");
       setIsOpen(false);
       router.push(`/admin/courses/${newCourse.id}`);
     } else {
-      alert("เกิดข้อผิดพลาดในการสร้างบทเรียน กรุณาลองใหม่อีกครั้ง");
+      toast.error("เกิดข้อผิดพลาดในการสร้างบทเรียน กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -45,6 +47,7 @@ export default function CreateCourseButton() {
               <h2 className="text-xl font-bold text-slate-800 dark:text-white">สร้างบทเรียนใหม่</h2>
               <button 
                 onClick={() => setIsOpen(false)}
+                aria-label="ปิดหน้าต่างสร้างบทเรียนใหม่"
                 className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors"
               >
                 <X className="w-5 h-5" />

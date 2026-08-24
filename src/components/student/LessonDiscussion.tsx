@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { MessageSquare, Send, User, Clock, ThumbsUp, Reply } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { toast } from "sonner";
 
 interface Discussion {
   id: string;
@@ -122,8 +123,9 @@ export default function LessonDiscussion({ courseId, lessonId, studentId }: Less
 
       if (error) {
         console.error("Error posting discussion:", error);
-        alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+        toast.error("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
       } else {
+        toast.success("แสดงความคิดเห็นเรียบร้อยแล้ว");
         if (parentId) {
           setReplyingTo(null);
           setReplyContent("");

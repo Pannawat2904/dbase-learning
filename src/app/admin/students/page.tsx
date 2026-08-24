@@ -132,9 +132,11 @@ export default async function AdminStudentsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Students Data Container: Desktop Table + Mobile Cards */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        
+        {/* Desktop Table View (>= md) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
@@ -215,6 +217,73 @@ export default async function AdminStudentsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Cards View (< md) */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {students.map((student) => (
+            <div key={student.id} className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                    {student.avatar_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={student.avatar_url} alt={student.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800 dark:text-white text-sm">{student.name}</h3>
+                    <p className="text-xs text-slate-400">{student.email}</p>
+                  </div>
+                </div>
+                <StudentActionsMenu student={student} />
+              </div>
+
+              {/* Progress */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>ความก้าวหน้า</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">{Math.min(100, student.progress)}%</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full ${Math.min(100, student.progress) === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                    style={{ width: `${Math.min(100, student.progress)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Score Badges Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center text-xs">
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <div className="text-slate-400 text-[10px]">Pre-Test</div>
+                  <div className="font-bold text-slate-800 dark:text-white mt-0.5">{student.preTest}</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <div className="text-slate-400 text-[10px]">Post-Test</div>
+                  <div className={`font-bold mt-0.5 ${student.postTestPassed ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-300'}`}>{student.postTest}</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <div className="text-slate-400 text-[10px]">แบบทดสอบ</div>
+                  <div className="font-bold text-slate-800 dark:text-white mt-0.5">{student.quiz}</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <div className="text-slate-400 text-[10px]">ใบงาน</div>
+                  <div className="font-bold text-slate-800 dark:text-white mt-0.5">{student.assignment}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 text-xs text-slate-500">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${student.statusColor}`}>
+                  {student.statusLabel}
+                </span>
+                <span>เข้าเรียนล่าสุด: {student.lastActive}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   );

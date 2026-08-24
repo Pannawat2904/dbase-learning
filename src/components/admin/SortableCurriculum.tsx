@@ -21,6 +21,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Settings, FileText, PlayCircle, HelpCircle, Plus, Trash2 } from 'lucide-react';
 import { updateModuleOrder, updateLessonOrder, deleteLesson } from '@/utils/supabase/queries';
 import { useRouter } from 'next/navigation';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
+import { toast } from 'sonner';
 
 // Sortable Lesson Item
 function SortableLessonItem({ lesson, module, openLessonModal, courseId, fetchCourse }: any) {
@@ -41,7 +43,7 @@ function SortableLessonItem({ lesson, module, openLessonModal, courseId, fetchCo
   return (
     <div ref={setNodeRef} style={style} className="p-4 flex items-center justify-between group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors bg-white dark:bg-slate-900 z-10">
       <div className="flex items-center gap-4">
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div {...attributes} {...listeners} aria-label="ลากเพื่อจัดลำดับบทเรียน" className="cursor-grab active:cursor-grabbing text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
           <GripVertical className="w-4 h-4" />
         </div>
         <div className="flex items-center gap-3">
@@ -73,11 +75,19 @@ function SortableLessonItem({ lesson, module, openLessonModal, courseId, fetchCo
         </button>
         <button 
           onClick={async () => {
-            if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบบทเรียนนี้?')) {
+            const confirmed = await confirmDialog({
+              title: "ยืนยันการลบบทเรียน",
+              message: `คุณแน่ใจหรือไม่ว่าต้องการลบบทเรียน "${lesson.title}"? การกระทำนี้ไม่สามารถย้อนกลับได้`,
+              type: "danger",
+              confirmText: "ลบบทเรียน"
+            });
+            if (confirmed) {
               await deleteLesson(lesson.id);
+              toast.success("ลบบทเรียนเรียบร้อยแล้ว");
               if (fetchCourse) fetchCourse();
             }
           }}
+          aria-label={`ลบบทเรียน ${lesson.title}`}
           className="flex items-center justify-center text-xs font-medium text-red-500 hover:text-red-600 dark:text-red-400 w-8 h-8 border border-red-200 dark:border-red-800/50 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors bg-red-50/50 dark:bg-red-900/10 shrink-0"
           title="ลบบทเรียน"
         >

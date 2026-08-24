@@ -17,56 +17,48 @@ export default async function StudentDashboard() {
 
   const courses = await getCourses();
   
-  // Fetch curriculum for all courses to calculate global stats
-  const allCoursesCurriculum = [];
+  // Concurrently fetch curriculum for all courses to calculate global stats
+  const allCoursesCurriculum: any[] = [];
   let latestCourse: any = null;
   
   if (courses && courses.length > 0) {
-    for (const c of courses) {
-      const curriculum = await getCourseWithCurriculum(c.id.toString());
+    const curricula = await Promise.all(
+      courses.map((c: any) => getCourseWithCurriculum(c.id.toString()))
+    );
+
+    curricula.forEach((curriculum, idx) => {
       if (curriculum) {
         allCoursesCurriculum.push({
-          courseId: c.id.toString(),
+          courseId: courses[idx].id.toString(),
           modules: curriculum.modules || []
         });
         if (!latestCourse) {
           latestCourse = curriculum;
         }
       }
-    }
+    });
   }
 
   let completedLessonIds: string[] = [];
+  let scoresData: any[] = [];
+
   if (user) {
-    // Fetch global progress (progress + scores + assignments)
-    const { data: pData } = await supabase
-      .from('student_lesson_progress')
-      .select('lesson_id')
-      .eq('student_id', user.id);
-
-    const { data: sData } = await supabase
-      .from('student_scores')
-      .select('lesson_id')
-      .eq('student_id', user.id);
-
-    const { data: aData } = await supabase
-      .from('student_assignments')
-      .select('lesson_id')
-      .eq('student_id', user.id);
+    // Concurrently fetch global progress (progress + scores + assignments + scoresData)
+    const [pRes, sRes, aRes, fetchedScores] = await Promise.all([
+      supabase.from('student_lesson_progress').select('lesson_id').eq('student_id', user.id),
+      supabase.from('student_scores').select('lesson_id').eq('student_id', user.id),
+      supabase.from('student_assignments').select('lesson_id').eq('student_id', user.id),
+      latestCourse ? getStudentScores(user.id, latestCourse.id.toString()) : Promise.resolve([])
+    ]);
 
     const combinedSet = new Set([
-      ...(pData || []).map(p => String(p.lesson_id)),
-      ...(sData || []).map(s => String(s.lesson_id)),
-      ...(aData || []).map(a => String(a.lesson_id)),
+      ...(pRes.data || []).map((p: any) => String(p.lesson_id)),
+      ...(sRes.data || []).map((s: any) => String(s.lesson_id)),
+      ...(aRes.data || []).map((a: any) => String(a.lesson_id)),
     ].filter(Boolean));
 
     completedLessonIds = Array.from(combinedSet);
-  }
-
-  let scoresData: any[] = [];
-  
-  if (user && latestCourse) {
-    scoresData = await getStudentScores(user.id, latestCourse.id.toString());
+    scoresData = fetchedScores || [];
   }
 
   return (

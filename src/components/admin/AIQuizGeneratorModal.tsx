@@ -74,7 +74,11 @@ export default function AIQuizGeneratorModal({ isOpen, onClose, onQuestionsGener
               <p className="text-xs text-slate-500 font-medium">วางเนื้อหาจากสไลด์ แล้วให้ AI ช่วยคิดโจทย์และช้อยส์</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm">
+          <button 
+            onClick={onClose} 
+            aria-label="ปิดหน้าต่างสร้างข้อสอบด้วย AI"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>

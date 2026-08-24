@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { MoreHorizontal, BarChart, BookOpen, Send, RotateCcw, Trash2, X, Check } from "lucide-react";
 import { sendChatMessage, deleteExamScore, resetStudentProgress, deleteStudentProfile, resetStudentAssignments } from "@/utils/supabase/queries";
 import { useRouter } from "next/navigation";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { toast } from "sonner";
 
 export default function StudentActionsMenu({ student }: { student: any }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,13 +37,14 @@ export default function StudentActionsMenu({ student }: { student: any }) {
     setIsSending(false);
     if (success) {
       setSendSuccess(true);
+      toast.success("ส่งข้อความถึงนักเรียนเรียบร้อยแล้ว");
       setTimeout(() => {
         setSendSuccess(false);
         setIsMessageOpen(false);
         setMessageText("");
       }, 2000);
     } else {
-      alert("เกิดข้อผิดพลาด ไม่สามารถส่งข้อความได้");
+      toast.error("เกิดข้อผิดพลาด ไม่สามารถส่งข้อความได้");
     }
   };
 
@@ -49,53 +52,81 @@ export default function StudentActionsMenu({ student }: { student: any }) {
     const lessonId = examType === 'pre' ? student.preTestId : student.postTestId;
     if (!lessonId) return;
     
-    if (confirm(`คุณแน่ใจหรือไม่ที่จะลบผลคะแนน ${examType === 'pre' ? 'Pre-test' : 'Post-test'} ของนักเรียนคนนี้? นักเรียนจะสามารถกลับไปทำข้อสอบใหม่ได้`)) {
+    const confirmed = await confirmDialog({
+      title: `ยืนยันการลบผลคะแนน ${examType === 'pre' ? 'Pre-test' : 'Post-test'}`,
+      message: `คุณแน่ใจหรือไม่ที่จะลบผลคะแนน ${examType === 'pre' ? 'Pre-test' : 'Post-test'} ของนักเรียน ${student.name}? นักเรียนจะสามารถกลับไปทำข้อสอบใหม่ได้`,
+      type: "warning",
+      confirmText: "ลบผลคะแนน"
+    });
+
+    if (confirmed) {
       const success = await deleteExamScore(student.id, lessonId);
       if (success) {
-        alert("ลบผลคะแนนเรียบร้อยแล้ว");
+        toast.success("ลบผลคะแนนเรียบร้อยแล้ว");
         setIsOpen(false);
         router.refresh();
       } else {
-        alert("เกิดข้อผิดพลาดในการลบผลคะแนน");
+        toast.error("เกิดข้อผิดพลาดในการลบผลคะแนน");
       }
     }
   };
 
   const handleResetAllProgress = async () => {
-    if (confirm(`คำเตือน: คุณแน่ใจหรือไม่ที่จะ "รีเซ็ตความคืบหน้าทั้งหมด" ของ ${student.name}?\nคะแนนสอบและการเข้าเรียนทั้งหมดจะถูกลบ! (ไม่สามารถกู้คืนได้)`)) {
+    const confirmed = await confirmDialog({
+      title: `รีเซ็ตความคืบหน้าทั้งหมด`,
+      message: `คำเตือน: คุณแน่ใจหรือไม่ที่จะ "รีเซ็ตความคืบหน้าทั้งหมด" ของ ${student.name}?\nคะแนนสอบและการเข้าเรียนทั้งหมดจะถูกลบ! (ไม่สามารถกู้คืนได้)`,
+      type: "danger",
+      confirmText: "รีเซ็ตทั้งหมด"
+    });
+
+    if (confirmed) {
       const success = await resetStudentProgress(student.id);
       if (success) {
-        alert("รีเซ็ตความคืบหน้าเรียบร้อยแล้ว");
+        toast.success("รีเซ็ตความคืบหน้าเรียบร้อยแล้ว");
         setIsOpen(false);
         router.refresh();
       } else {
-        alert("เกิดข้อผิดพลาดในการรีเซ็ตความคืบหน้า");
+        toast.error("เกิดข้อผิดพลาดในการรีเซ็ตความคืบหน้า");
       }
     }
   };
 
   const handleResetAssignments = async () => {
-    if (confirm(`คุณแน่ใจหรือไม่ที่จะล้างค่าการส่งงานปฏิบัติทั้งหมดของ ${student.name}? นักเรียนจะต้องอัปโหลดไฟล์ส่งใหม่ทั้งหมด`)) {
+    const confirmed = await confirmDialog({
+      title: `ล้างสถานะการส่งงานปฏิบัติ`,
+      message: `คุณแน่ใจหรือไม่ที่จะล้างค่าการส่งงานปฏิบัติทั้งหมดของ ${student.name}? นักเรียนจะต้องอัปโหลดไฟล์ส่งใหม่ทั้งหมด`,
+      type: "warning",
+      confirmText: "ล้างสถานะการส่งงาน"
+    });
+
+    if (confirmed) {
       const success = await resetStudentAssignments(student.id);
       if (success) {
-        alert("ล้างสถานะการส่งงานปฏิบัติเรียบร้อยแล้ว");
+        toast.success("ล้างสถานะการส่งงานปฏิบัติเรียบร้อยแล้ว");
         setIsOpen(false);
         router.refresh();
       } else {
-        alert("เกิดข้อผิดพลาดในการล้างสถานะการส่งงาน");
+        toast.error("เกิดข้อผิดพลาดในการล้างสถานะการส่งงาน");
       }
     }
   };
 
   const handleDeleteStudent = async () => {
-    if (confirm(`อันตราย!: คุณแน่ใจหรือไม่ที่จะ "ลบข้อมูลนักเรียน" ${student.name} ออกจากระบบ?\nข้อมูลทุกอย่างของนักเรียนคนนี้จะถูกลบทั้งหมด! (ไม่สามารถกู้คืนได้)`)) {
+    const confirmed = await confirmDialog({
+      title: `ลบข้อมูลนักเรียนออกจากระบบ`,
+      message: `อันตราย!: คุณแน่ใจหรือไม่ที่จะ "ลบข้อมูลนักเรียน" ${student.name} ออกจากระบบ?\nข้อมูลทุกอย่างของนักเรียนคนนี้จะถูกลบทั้งหมด! (ไม่สามารถกู้คืนได้)`,
+      type: "danger",
+      confirmText: "ยืนยันลบข้อมูลนักเรียน"
+    });
+
+    if (confirmed) {
       const success = await deleteStudentProfile(student.id);
       if (success) {
-        alert("ลบข้อมูลนักเรียนเรียบร้อยแล้ว");
+        toast.success("ลบข้อมูลนักเรียนเรียบร้อยแล้ว");
         setIsOpen(false);
         router.refresh();
       } else {
-        alert("เกิดข้อผิดพลาดในการลบข้อมูลนักเรียน");
+        toast.error("เกิดข้อผิดพลาดในการลบข้อมูลนักเรียน");
       }
     }
   };

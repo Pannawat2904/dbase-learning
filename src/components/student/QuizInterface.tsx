@@ -3,6 +3,8 @@ import Link from "next/link";
 import { HelpCircle, Clock, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft, RotateCcw, MessageSquare, Award } from "lucide-react";
 import { saveExamScore, issueCertificate } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { toast } from "sonner";
 
 interface Question {
   id: string;
@@ -106,15 +108,15 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      alert("ไม่อนุญาตให้คลิกขวาในระหว่างการทำข้อสอบครับ");
+      toast.error("ไม่อนุญาตให้คลิกขวาในระหว่างการทำข้อสอบครับ");
     };
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
-      alert("ไม่อนุญาตให้คัดลอกข้อความในระหว่างการทำข้อสอบครับ");
+      toast.error("ไม่อนุญาตให้คัดลอกข้อความในระหว่างการทำข้อสอบครับ");
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        alert("คำเตือน: ระบบตรวจพบการสลับหน้าจอ (Tab Switching) ระหว่างการทำแบบทดสอบ!");
+        toast.warning("คำเตือน: ระบบตรวจพบการสลับหน้าจอ (Tab Switching) ระหว่างการทำแบบทดสอบ!");
       }
     };
 
@@ -131,7 +133,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
   const handleStart = () => {
     if (shuffledQuestions.length === 0) {
-      alert("แบบทดสอบนี้ยังไม่มีคำถาม");
+      toast.error("แบบทดสอบนี้ยังไม่มีคำถาม");
       return;
     }
     setHasStarted(true);
@@ -592,8 +594,15 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
         {currentQuestionIndex === shuffledQuestions.length - 1 ? (
           <button
-            onClick={() => {
-              if (window.confirm("คุณแน่ใจหรือไม่ที่จะส่งข้อสอบ? (เมื่อส่งแล้วจะไม่สามารถแก้ไขได้)")) {
+            onClick={async () => {
+              const confirmed = await confirmDialog({
+                title: "ยืนยันการส่งข้อสอบ",
+                message: "คุณแน่ใจหรือไม่ที่จะส่งข้อสอบ? (เมื่อส่งแล้วจะไม่สามารถแก้ไขคำตอบได้)",
+                type: "warning",
+                confirmText: "ส่งข้อสอบ",
+                cancelText: "ตรวจทานอีกครั้ง"
+              });
+              if (confirmed) {
                 handleSubmitQuiz();
               }
             }}

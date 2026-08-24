@@ -2,6 +2,7 @@
 
 import { Download } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface ExportExcelButtonProps {
   students: any[];
@@ -46,9 +47,10 @@ export default function ExportExcelButton({ students }: ExportExcelButtonProps) 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      toast.success("ดาวน์โหลดรายงานข้อมูลนักเรียนเรียบร้อยแล้ว");
     } catch (e) {
       console.error("Export failed:", e);
-      alert("เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์");
+      toast.error("เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์");
     } finally {
       setIsExporting(false);
     }

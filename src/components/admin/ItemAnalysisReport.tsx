@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BarChart3, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Download, Info, CheckCircle, XCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 interface QuestionStat {
   id: string;
@@ -285,16 +286,29 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
 
       const timestamp = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(workbook, `รายงานวิเคราะห์ข้อสอบ_Item_Analysis_${timestamp}.xlsx`);
+      toast.success("ดาวน์โหลดรายงานวิเคราะห์ข้อสอบ (Excel) เรียบร้อยแล้ว");
     } catch (err) {
       console.error("Export error:", err);
-      alert("เกิดข้อผิดพลาดในการดาวน์โหลด Excel");
+      toast.error("เกิดข้อผิดพลาดในการดาวน์โหลด Excel");
     } finally {
       setIsExporting(false);
     }
   };
 
   if (loading) {
-    return <div className="animate-pulse h-64 bg-slate-100 dark:bg-slate-800 rounded-2xl w-full"></div>;
+    return (
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm w-full animate-pulse space-y-4">
+        <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+          <div className="h-9 w-32 bg-slate-100 dark:bg-slate-800 rounded-xl"></div>
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-20 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800"></div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (stats.length === 0) {

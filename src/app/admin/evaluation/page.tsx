@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { 
   Star, 
   Lock, 
@@ -97,8 +99,9 @@ export default function AdminEvaluationPage() {
         ...prev,
         isOpen: newState
       }));
+      toast.success(newState ? "เปิดระบบให้นักเรียนทำแบบประเมินแล้ว" : "ปิดระบบรับแบบประเมินเรียบร้อยแล้ว");
     } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาดในการเปลี่ยนสถานะ");
+      toast.error(err.message || "เกิดข้อผิดพลาดในการเปลี่ยนสถานะ");
     } finally {
       setToggling(false);
     }
@@ -109,7 +112,7 @@ export default function AdminEvaluationPage() {
   // ----------------------------------------------------
   const handleAddSection = () => {
     if (!newSectionTitle.trim()) {
-      alert("กรุณากรอกชื่อส่วนการประเมิน");
+      toast.warning("กรุณากรอกชื่อส่วนการประเมิน");
       return;
     }
     const newDim: SurveyDimension = {
@@ -124,14 +127,20 @@ export default function AdminEvaluationPage() {
     setIsAddingSection(false);
   };
 
-  const handleDeleteSection = (dimId: string) => {
-    if (!confirm("คุณต้องการลบส่วนการประเมินนี้พร้อมข้อคำถามทั้งหมดใช่หรือไม่?")) return;
+  const handleDeleteSection = async (dimId: string) => {
+    const confirmed = await confirmDialog({
+      title: "ยืนยันการลบส่วนการประเมิน",
+      message: "คุณต้องการลบส่วนการประเมินนี้พร้อมข้อคำถามทั้งหมดใช่หรือไม่?",
+      type: "danger",
+      confirmText: "ลบส่วนนี้"
+    });
+    if (!confirmed) return;
     setDimensions(prev => prev.filter(d => d.id !== dimId));
   };
 
   const handleAddItem = (dimId: string) => {
     if (!newItemText.trim()) {
-      alert("กรุณากรอกข้อความรายการประเมิน");
+      toast.warning("กรุณากรอกข้อความรายการประเมิน");
       return;
     }
     setDimensions(prev => prev.map(d => {
@@ -191,18 +200,25 @@ export default function AdminEvaluationPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to save form structure');
 
       setSaveSuccessMsg("บันทึกส่วนและรายการประเมินความพึงพอใจสำเร็จ!");
+      toast.success("บันทึกส่วนและรายการประเมินสำเร็จ!");
       setTimeout(() => setSaveSuccessMsg(""), 4000);
       fetchAnalytics();
     } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาดในการบันทึก");
+      toast.error(err.message || "เกิดข้อผิดพลาดในการบันทึก");
     } finally {
       setSavingForm(false);
     }
   };
 
-  const handleLoadTemplate = () => {
+  const handleLoadTemplate = async () => {
     if (dimensions.length > 0) {
-      if (!confirm("การโหลดแม่แบบจะแทนที่รายการประเมินที่มีอยู่เดิม คุณต้องการดำเนินการต่อหรือไม่?")) return;
+      const confirmed = await confirmDialog({
+        title: "โหลดแม่แบบตัวอย่าง 4 ด้าน",
+        message: "การโหลดแม่แบบจะแทนที่รายการประเมินที่มีอยู่เดิม คุณต้องการดำเนินการต่อหรือไม่?",
+        type: "warning",
+        confirmText: "แทนที่ด้วยแม่แบบ"
+      });
+      if (!confirmed) return;
     }
     const template: SurveyDimension[] = [
       {
@@ -539,7 +555,11 @@ export default function AdminEvaluationPage() {
           </div>
 
           {saveSuccessMsg && (
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 p-4 rounded-2xl flex items-center gap-3 text-sm animate-in fade-in duration-300">
+            <div 
+              role="status"
+              aria-live="polite"
+              className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 p-4 rounded-2xl flex items-center gap-3 text-sm animate-in fade-in duration-300"
+            >
               <Check className="w-5 h-5 text-emerald-500 shrink-0" />
               <span className="font-semibold">{saveSuccessMsg}</span>
             </div>
@@ -550,25 +570,29 @@ export default function AdminEvaluationPage() {
             <h3 className="font-bold text-slate-800 dark:text-white text-base">หัวข้อและคำชี้แจงแบบประเมิน</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label htmlFor="survey-title-input" className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   ชื่อแบบประเมิน (Title)
                 </label>
                 <input
+                  id="survey-title-input"
                   type="text"
                   value={surveyTitle}
                   onChange={(e) => setSurveyTitle(e.target.value)}
+                  aria-label="ชื่อแบบประเมิน"
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label htmlFor="survey-desc-input" className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   คำชี้แจงสำหรับผู้เรียน (Description)
                 </label>
                 <textarea
+                  id="survey-desc-input"
                   rows={2}
                   value={surveyDescription}
                   onChange={(e) => setSurveyDescription(e.target.value)}
+                  aria-label="คำชี้แจงสำหรับผู้เรียน"
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -585,6 +609,7 @@ export default function AdminEvaluationPage() {
                 </h3>
                 <button 
                   onClick={() => setIsAddingSection(false)}
+                  aria-label="ยกเลิกการเพิ่มส่วนใหม่"
                   className="text-xs text-slate-400 hover:text-slate-600"
                 >
                   ยกเลิก
@@ -593,27 +618,31 @@ export default function AdminEvaluationPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label htmlFor="new-section-title" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     ชื่อส่วน/ด้าน (เช่น ด้านที่ 1: ด้านเนื้อหาบทเรียน) *
                   </label>
                   <input
+                    id="new-section-title"
                     type="text"
                     placeholder="กรอกชื่อส่วนการประเมิน..."
                     value={newSectionTitle}
                     onChange={(e) => setNewSectionTitle(e.target.value)}
+                    aria-label="ชื่อส่วนการประเมินใหม่"
                     className="w-full px-4 py-2.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label htmlFor="new-section-desc" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     คำอธิบายย่อย (ถ้ามี)
                   </label>
                   <input
+                    id="new-section-desc"
                     type="text"
                     placeholder="เช่น ความครอบคลุมและความเข้าใจง่ายของเนื้อหา"
                     value={newSectionDesc}
                     onChange={(e) => setNewSectionDesc(e.target.value)}
+                    aria-label="คำอธิบายย่อยของส่วนการประเมินใหม่"
                     className="w-full px-4 py-2.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -690,6 +719,7 @@ export default function AdminEvaluationPage() {
                             const val = e.target.value;
                             setDimensions(prev => prev.map(d => d.id === dim.id ? { ...d, title: val } : d));
                           }}
+                          aria-label={`แก้ไขชื่อส่วนการประเมินที่ ${dimIdx + 1}`}
                           className="font-bold text-slate-800 dark:text-white text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none px-1"
                         />
                         <input
@@ -700,6 +730,7 @@ export default function AdminEvaluationPage() {
                             const val = e.target.value;
                             setDimensions(prev => prev.map(d => d.id === dim.id ? { ...d, description: val } : d));
                           }}
+                          aria-label={`แก้ไขคำอธิบายย่อยของส่วนที่ ${dimIdx + 1}`}
                           className="block text-xs text-slate-400 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none px-1 mt-0.5"
                         />
                       </div>
@@ -712,6 +743,7 @@ export default function AdminEvaluationPage() {
                           setAddingItemToDimId(dim.id);
                           setNewItemText("");
                         }}
+                        aria-label={`เพิ่มข้อคำถามในส่วนที่ ${dimIdx + 1}`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 text-xs font-semibold hover:bg-blue-100 transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -721,6 +753,7 @@ export default function AdminEvaluationPage() {
                       <button
                         type="button"
                         onClick={() => handleDeleteSection(dim.id)}
+                        aria-label={`ลบส่วนการประเมินที่ ${dimIdx + 1}`}
                         className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                         title="ลบส่วนนี้"
                       >
@@ -732,10 +765,11 @@ export default function AdminEvaluationPage() {
                   {/* Add Item Form */}
                   {addingItemToDimId === dim.id && (
                     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-3">
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <label htmlFor={`new-item-input-${dim.id}`} className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                         ข้อความรายการประเมิน (Question Item) *
                       </label>
                       <input
+                        id={`new-item-input-${dim.id}`}
                         type="text"
                         autoFocus
                         placeholder={`เช่น ${dimIdx + 1}.${dim.items.length + 1} เนื้อหามีความชัดเจนและเข้าใจง่าย`}
@@ -747,6 +781,7 @@ export default function AdminEvaluationPage() {
                             handleAddItem(dim.id);
                           }
                         }}
+                        aria-label="ข้อความรายการประเมินใหม่"
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                       <div className="flex justify-end gap-2">
@@ -788,6 +823,7 @@ export default function AdminEvaluationPage() {
                               type="text"
                               value={item.text}
                               onChange={(e) => handleUpdateItemText(dim.id, item.id, e.target.value)}
+                              aria-label={`แก้ไขข้อความรายการประเมินที่ ${itemIdx + 1}`}
                               className="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-0.5"
                             />
                           </div>
@@ -795,6 +831,7 @@ export default function AdminEvaluationPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteItem(dim.id, item.id)}
+                            aria-label={`ลบข้อคำถามที่ ${itemIdx + 1}`}
                             className="p-1 rounded-md text-slate-400 hover:text-red-500 transition-colors"
                             title="ลบข้อนี้"
                           >
@@ -901,7 +938,8 @@ export default function AdminEvaluationPage() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop Table View (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
@@ -997,6 +1035,68 @@ export default function AdminEvaluationPage() {
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View (< md) */}
+          <div className="block md:hidden p-4 space-y-4">
+            {currentDimensions.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm">
+                ยังไม่มีส่วนและข้อคำถามการประเมินในระบบ
+              </div>
+            ) : (
+              currentDimensions.map((dim: any, dimIdx: number) => {
+                const dimStat = analytics?.dimensionStats?.[dim.id] || { mean: 0, sd: 0, quality: '-', qualityColor: 'text-slate-500' };
+                return (
+                  <div key={dim.id} className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+                    <div className="bg-blue-50/70 dark:bg-blue-950/30 p-3.5 border-b border-slate-200 dark:border-slate-800">
+                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400">ด้านที่ {dimIdx + 1}</span>
+                      <h3 className="font-bold text-slate-800 dark:text-white text-sm mt-0.5">{dim.title}</h3>
+                    </div>
+
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800 p-2">
+                      {(dim.items || []).map((item: any, iIdx: number) => {
+                        const itemStat = analytics?.itemStats?.[item.id] || { mean: 0, sd: 0, quality: 'ยังไม่มีข้อมูล', qualityColor: 'text-slate-500 bg-slate-100' };
+                        return (
+                          <div key={item.id} className="p-3 space-y-2">
+                            <p className="text-xs font-medium text-slate-700 dark:text-slate-200">{item.text}</p>
+                            <div className="flex items-center justify-between text-xs pt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-800 dark:text-white">x̄ = {itemStat.mean > 0 ? itemStat.mean.toFixed(2) : '-'}</span>
+                                <span className="text-slate-400 font-mono">S.D. = {itemStat.sd > 0 ? itemStat.sd.toFixed(2) : '-'}</span>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${itemStat.qualityColor}`}>
+                                {itemStat.quality}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-600 dark:text-slate-300">เฉลี่ยรวมด้านนี้</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-600 dark:text-blue-400">x̄ = {dimStat.mean > 0 ? dimStat.mean.toFixed(2) : '-'}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${dimStat.qualityColor}`}>{dimStat.quality}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {/* Mobile Grand Total Card */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-4 shadow-md space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-sm">คะแนนเฉลี่ยรวมทุกด้าน</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-blue-700">{overallQuality}</span>
+              </div>
+              <div className="flex items-baseline gap-3 pt-1">
+                <span className="text-2xl font-black text-amber-300">{overallMean > 0 ? overallMean.toFixed(2) : '-'}</span>
+                <span className="text-xs text-blue-100">/ 5.00 คะแนน</span>
+                <span className="text-xs text-blue-200 font-mono ml-auto">S.D. = {overallSD > 0 ? overallSD.toFixed(2) : '-'}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}

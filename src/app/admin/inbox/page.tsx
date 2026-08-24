@@ -224,6 +224,7 @@ export default function AdminInboxPage() {
               <div className="px-4 md:px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3">
                 <button 
                   onClick={() => setSelectedStudentId(null)}
+                  aria-label="ย้อนกลับไปรายการข้อความทั้งหมด"
                   className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -248,7 +249,9 @@ export default function AdminInboxPage() {
                       <div className={`text-[10px] mt-1 flex items-center gap-1 justify-end ${msg.sender_role === 'admin' ? 'text-blue-200' : 'text-slate-400'}`}>
                         {new Date(msg.created_at).toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})}
                         {msg.sender_role === 'admin' && (
-                          <CheckCheck className={`w-3 h-3 ${msg.is_read ? 'text-blue-200' : 'opacity-50'}`} />
+                          <span className="text-[9px] font-bold">
+                            {msg.is_read ? '✓✓ อ่านแล้ว' : '✓ ส่งแล้ว'}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -265,11 +268,13 @@ export default function AdminInboxPage() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="พิมพ์ข้อความตอบกลับ..."
+                    aria-label="พิมพ์ข้อความตอบกลับ"
                     className="flex-1 px-4 py-3 rounded-full bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm transition-all"
                   />
                   <button 
                     type="submit"
                     disabled={!newMessage.trim() || isSending}
+                    aria-label="ส่งข้อความ"
                     className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                   >
                     {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}

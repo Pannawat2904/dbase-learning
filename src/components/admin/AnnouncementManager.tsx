@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Megaphone, Send, Clock, Trash2, Edit2, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { toast } from "sonner";
 
 interface Announcement {
   id: string;
@@ -67,24 +69,34 @@ export default function AnnouncementManager() {
 
       setTitle("");
       setContent("");
+      toast.success("ส่งประกาศให้นักเรียนเรียบร้อยแล้ว");
       fetchAnnouncements();
     } catch (e: any) {
       console.error("Error posting announcement:", e);
       setError(e.message || "เกิดข้อผิดพลาดในการประกาศ");
+      toast.error(e.message || "เกิดข้อผิดพลาดในการประกาศ");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("คุณต้องการลบประกาศนี้ใช่หรือไม่?")) return;
+    const confirmed = await confirmDialog({
+      title: "ยืนยันการลบประกาศ",
+      message: "คุณต้องการลบประกาศนี้ใช่หรือไม่?",
+      type: "danger",
+      confirmText: "ลบประกาศ"
+    });
+    if (!confirmed) return;
     
     try {
       const supabase = createClient();
       await supabase.from("announcements").delete().eq("id", id);
+      toast.success("ลบประกาศเรียบร้อยแล้ว");
       fetchAnnouncements();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error deleting announcement:", e);
+      toast.error("เกิดข้อผิดพลาดในการลบประกาศ");
     }
   };
 
@@ -183,6 +195,7 @@ export default function AnnouncementManager() {
                   <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => handleDelete(announcement.id)}
+                      aria-label={`ลบประกาศหัวข้อ ${announcement.title}`}
                       className="p-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 rounded-md hover:bg-red-100"
                       title="ลบประกาศ"
                     >

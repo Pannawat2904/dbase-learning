@@ -5,6 +5,7 @@ import { Plus, X, Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createAdminUser } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
+import { toast } from "sonner";
 
 export default function AddTeacherButton() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function AddTeacherButton() {
       .upload(filePath, file);
 
     if (uploadError) {
-      alert('Error uploading avatar: ' + uploadError.message);
+      toast.error('เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์: ' + uploadError.message);
       setUploadingAvatar(false);
       return;
     }
@@ -44,6 +45,7 @@ export default function AddTeacherButton() {
 
     setAvatarUrl(publicUrl);
     setUploadingAvatar(false);
+    toast.success("อัปโหลดรูปโปรไฟล์เรียบร้อย");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -59,11 +61,12 @@ export default function AddTeacherButton() {
     
     setIsSubmitting(false);
     if (result) {
+      toast.success("สร้างบัญชีครูผู้สอนเรียบร้อยแล้ว");
       setIsOpen(false);
       setAvatarUrl("");
       router.refresh();
     } else {
-      alert("เกิดข้อผิดพลาดในการสร้างบัญชี");
+      toast.error("เกิดข้อผิดพลาดในการสร้างบัญชี");
     }
   };
 
@@ -84,6 +87,7 @@ export default function AddTeacherButton() {
               <h3 className="text-xl font-bold text-slate-800 dark:text-white">เพิ่มบัญชีครูผู้สอน</h3>
               <button 
                 onClick={() => setIsOpen(false)}
+                aria-label="ปิดหน้าต่างเพิ่มบัญชีครูผู้สอน"
                 className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />

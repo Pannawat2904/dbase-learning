@@ -7,6 +7,8 @@ import { ChevronLeft, Save, FileText, PlayCircle, HelpCircle, Loader2, Plus, Tra
 import { getLesson, updateLesson } from "@/utils/supabase/queries";
 import AIQuizGeneratorModal from "@/components/admin/AIQuizGeneratorModal";
 
+import { toast } from "sonner";
+
 export default function LessonEditor() {
   const params = useParams();
   const router = useRouter();
@@ -94,9 +96,9 @@ export default function LessonEditor() {
     const successOrError = await updateLesson(lesson.id, { content: newContent });
     setIsSaving(false);
     if (successOrError === true) {
-      alert("บันทึกข้อมูลเรียบร้อยแล้ว");
+      toast.success("บันทึกข้อมูลเรียบร้อยแล้ว");
     } else {
-      alert(`เกิดข้อผิดพลาดในการบันทึก: ${successOrError}`);
+      toast.error(`เกิดข้อผิดพลาดในการบันทึก: ${successOrError}`);
     }
   };
 
@@ -116,30 +118,25 @@ export default function LessonEditor() {
 
   const updateQuestion = (index: number, field: string, value: any) => {
     const updated = [...questions];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index][field] = value;
     setQuestions(updated);
   };
 
   const removeQuestion = (index: number) => {
-    const updated = [...questions];
-    updated.splice(index, 1);
-    setQuestions(updated);
+    setQuestions(questions.filter((_, i) => i !== index));
   };
 
   const updateOption = (qIndex: number, optIndex: number, value: string) => {
     const updated = [...questions];
-    if (updated[qIndex].options) {
-      updated[qIndex].options[optIndex] = value;
-      setQuestions(updated);
-    }
+    updated[qIndex].options[optIndex] = value;
+    setQuestions(updated);
   };
 
   const addOption = (qIndex: number) => {
     const updated = [...questions];
-    if (updated[qIndex].options) {
-      updated[qIndex].options.push("");
-      setQuestions(updated);
-    }
+    if (!updated[qIndex].options) updated[qIndex].options = [];
+    updated[qIndex].options.push("");
+    setQuestions(updated);
   };
 
   const removeOption = (qIndex: number, optIndex: number) => {
@@ -157,7 +154,7 @@ export default function LessonEditor() {
 
   const handleSmartPaste = () => {
     if (!smartPasteText.trim()) {
-      alert("กรุณาวางข้อความก่อนครับ");
+      toast.warning("กรุณาวางข้อความก่อนครับ");
       return;
     }
     
@@ -199,9 +196,9 @@ export default function LessonEditor() {
       setQuestions([...questions, ...newQuestions]);
       setSmartPasteText("");
       setIsSmartPasteOpen(false);
-      alert(`นำเข้าคำถามสำเร็จ ${newQuestions.length} ข้อ`);
+      toast.success(`นำเข้าคำถามสำเร็จ ${newQuestions.length} ข้อ`);
     } else {
-      alert("ไม่พบรูปแบบคำถามในข้อความ กรุณาตรวจสอบให้แน่ใจว่าข้อความขึ้นต้นด้วย 1. และตัวเลือกขึ้นต้นด้วย ก. ข. ค. ง.");
+      toast.error("ไม่พบรูปแบบคำถามในข้อความ กรุณาตรวจสอบให้แน่ใจว่าข้อความขึ้นต้นด้วย 1. และตัวเลือกขึ้นต้นด้วย ก. ข. ค. ง.");
     }
   };
 
@@ -561,6 +558,7 @@ export default function LessonEditor() {
                                 <button 
                                   onClick={() => removeOption(qIndex, optIndex)}
                                   disabled={(q.options?.length || 0) <= 2}
+                                  aria-label={`ลบตัวเลือกที่ ${optIndex + 1}`}
                                   className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-30"
                                 >
                                   <Trash2 className="w-4 h-4" />

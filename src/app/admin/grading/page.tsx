@@ -115,7 +115,7 @@ export default function GradingPage() {
   const activeList = activeTab === 'essay' ? pendingExams : pendingAssignments;
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">ตรวจงานและข้อสอบ</h1>

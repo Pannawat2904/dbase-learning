@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   }
 };
 
+import { ConfirmDialogContainer } from "@/components/ui/ConfirmDialog";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -48,6 +50,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster richColors position="top-center" />
+          <ConfirmDialogContainer />
         </ThemeProvider>
       </body>
     </html>

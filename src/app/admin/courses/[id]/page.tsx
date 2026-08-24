@@ -8,6 +8,8 @@ import { getCourseWithCurriculum, createModule, updateModule, createLesson, upda
 import { useParams } from "next/navigation";
 import SortableCurriculum from "@/components/admin/SortableCurriculum";
 
+import { toast } from "sonner";
+
 export default function CourseBuilder() {
   const params = useParams();
   const router = useRouter();
@@ -125,10 +127,10 @@ export default function CourseBuilder() {
     });
     setIsSaving(false);
     if (successOrError === true) {
-      alert("บันทึกการตั้งค่าเรียบร้อยแล้ว");
+      toast.success("บันทึกการตั้งค่าเรียบร้อยแล้ว");
       await fetchCourse();
     } else {
-      alert(`เกิดข้อผิดพลาดในการบันทึก: ${successOrError}`);
+      toast.error(`เกิดข้อผิดพลาดในการบันทึก: ${successOrError}`);
     }
   };
 

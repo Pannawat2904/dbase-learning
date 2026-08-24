@@ -115,6 +115,7 @@ export default function ChatbotWidget() {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="เปิดหน้าต่างพูดคุยกับผู้ช่วย AI"
         className="fixed bottom-32 md:bottom-8 right-6 md:right-8 z-50 group flex items-center gap-4 print:hidden transition-all duration-500"
       >
         {/* Tooltip (Visible on Hover) */}
@@ -155,7 +156,11 @@ export default function ChatbotWidget() {
                 <p className="text-[10px] text-blue-100 uppercase tracking-widest opacity-90">Powered by Gemini</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors active:scale-95">
+            <button 
+              onClick={() => setIsOpen(false)} 
+              aria-label="ปิดหน้าต่าง AI Assistant"
+              className="p-2 hover:bg-white/20 rounded-full transition-colors active:scale-95"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -209,12 +214,14 @@ export default function ChatbotWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="พิมพ์คำถามของคุณที่นี่..."
+                aria-label="พิมพ์คำถามของคุณถึง AI"
                 disabled={isLoading}
                 className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full py-3.5 pl-5 pr-14 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all shadow-inner"
               />
               <button 
                 type="submit"
                 disabled={!input.trim() || isLoading}
+                aria-label="ส่งคำถาม"
                 className="absolute right-1.5 p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm active:scale-95"
               >
                 <Send className="w-4 h-4 ml-0.5" />
