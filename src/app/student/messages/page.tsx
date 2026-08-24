@@ -121,16 +121,23 @@ export default function StudentMessagesPage() {
       <div className="vision-glass flex flex-col h-full rounded-2xl overflow-hidden shadow-xl border border-white/20 dark:border-slate-800/50">
         
         {/* Chat Header */}
-        <div className="px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
-            <MessageSquare className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">คุยกับคุณครู (Admin)</h3>
-            <p className="text-sm text-slate-500 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Online
-            </p>
+        <div className="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 border border-white/20">
+              <MessageSquare className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white">สนทนากับคุณครูผู้สอน</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  By KruBall
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>ออนไลน์พร้อมให้คำปรึกษา</span>
+              </p>
+            </div>
           </div>
         </div>
 
