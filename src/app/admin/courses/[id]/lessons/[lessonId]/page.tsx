@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
-import { ChevronLeft, Save, FileText, PlayCircle, HelpCircle, Loader2, Plus, Trash2, Settings, Clock, Target, GripVertical, Wand2, X, Sparkles } from "lucide-react";
+import { ChevronLeft, Save, FileText, PlayCircle, HelpCircle, Loader2, Plus, Trash2, Settings, Clock, Target, GripVertical, Wand2, X, Sparkles, Upload, Paperclip, Award, Calendar, BookOpen, Layers, CheckSquare, FileCheck } from "lucide-react";
 import { getLesson, updateLesson } from "@/utils/supabase/queries";
 import AIQuizGeneratorModal from "@/components/admin/AIQuizGeneratorModal";
 
@@ -21,6 +21,15 @@ export default function LessonEditor() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [worksheetUrl, setWorksheetUrl] = useState("");
   const [contentBody, setContentBody] = useState("");
+
+  // Assignment states
+  const [assignmentMaxScore, setAssignmentMaxScore] = useState<number | string>(10);
+  const [assignmentDueDate, setAssignmentDueDate] = useState<string>("");
+  const [allowedFileTypes, setAllowedFileTypes] = useState<string>(".accdb, .sql, .pdf, .zip, .docx");
+  const [worksheetFileUrl, setWorksheetFileUrl] = useState<string>("");
+  const [worksheetFileName, setWorksheetFileName] = useState<string>("");
+  const [rubricText, setRubricText] = useState<string>("");
+  const [isGeneratingAssignment, setIsGeneratingAssignment] = useState<boolean>(false);
   
   // Quiz states
   const [questions, setQuestions] = useState<any[]>([]);
@@ -51,6 +60,12 @@ export default function LessonEditor() {
           setYoutubeUrl(c.youtubeUrl || "");
           setWorksheetUrl(c.worksheetUrl || "");
           setContentBody(c.body || "");
+          setAssignmentMaxScore(c.maxScore !== undefined ? c.maxScore : 10);
+          setAssignmentDueDate(c.dueDate || "");
+          setAllowedFileTypes(c.allowedFileTypes || ".accdb, .sql, .pdf, .zip, .docx");
+          setWorksheetFileUrl(c.worksheetFileUrl || c.worksheetUrl || "");
+          setWorksheetFileName(c.worksheetFileName || "");
+          setRubricText(c.rubric || "");
           setQuestions(c.questions || []);
           setTimeLimit(c.timeLimit !== undefined ? c.timeLimit : 0);
           setPassingScore(c.passingScore !== undefined ? c.passingScore : 50);
@@ -80,6 +95,7 @@ export default function LessonEditor() {
 
     const cleanPassingScore = passingScore === '' ? 50 : Math.max(1, Math.min(100, Number(passingScore) || 50));
     const cleanTimeLimit = timeLimit === '' ? 0 : Math.max(0, Number(timeLimit) || 0);
+    const cleanMaxScore = assignmentMaxScore === '' ? 10 : Math.max(1, Number(assignmentMaxScore) || 10);
     const cleanQuestions = questions.map(q => ({
       ...q,
       points: q.points === '' || q.points === undefined ? 1 : Math.max(1, Number(q.points) || 1)
@@ -90,6 +106,14 @@ export default function LessonEditor() {
       youtubeUrl,
       worksheetUrl,
       body: contentBody,
+      ...(lesson.type === 'assignment' ? {
+        maxScore: cleanMaxScore,
+        dueDate: assignmentDueDate,
+        allowedFileTypes,
+        worksheetFileUrl,
+        worksheetFileName,
+        rubric: rubricText
+      } : {}),
       ...((lesson.type === 'quiz' || lesson.type === 'test') ? { questions: cleanQuestions, timeLimit: cleanTimeLimit, passingScore: cleanPassingScore, examType } : {})
     };
 
@@ -356,21 +380,240 @@ export default function LessonEditor() {
         )}
 
         {lesson.type === 'assignment' && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">รายละเอียดการส่งงาน (Assignment)</h3>
-              <p className="text-sm text-slate-500 mb-4">พิมพ์คำสั่ง ชี้แจงรายละเอียด หรือโจทย์สำหรับงานปฏิบัตินี้ ให้นักเรียนทราบก่อนอัปโหลดไฟล์ส่ง</p>
-              
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">คำสั่ง / โจทย์ (รองรับ HTML เบื้องต้น)</label>
-                <textarea 
-                  rows={8}
-                  value={contentBody}
-                  onChange={(e) => setContentBody(e.target.value)}
-                  placeholder="เช่น ให้นักเรียนสร้างฐานข้อมูล Access และสร้างตาราง..."
-                  className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                ></textarea>
+          <div className="space-y-8">
+            {/* Header & Quick Action Bar */}
+            <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-blue-950/30 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/40">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold mb-2">
+                    <Upload className="w-3.5 h-3.5" /> งานปฏิบัติการ (Practical Assignment)
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">กำหนดโจทย์และรายละเอียดใบงานปฏิบัติ</h3>
+                  <p className="text-sm text-slate-500 mt-1">กำหนดคำสั่ง จุดประสงค์ เกณฑ์การให้คะแนน และไฟล์แนบประกอบใบงาน เพื่อให้นักเรียนทำและอัปโหลดส่ง</p>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* AI Generate Button */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsGeneratingAssignment(true);
+                      try {
+                        const prompt = `ช่วยร่างคำสั่งและโจทย์งานปฏิบัติ (Practical Assignment) สำหรับรายวิชาโปรแกรมฐานข้อมูล (Microsoft Access / SQL) เรื่อง "${lesson.title}"
+โดยจัดโครงสร้าง HTML ให้มีหัวข้อ:
+1. <h3>📌 จุดประสงค์การเรียนรู้</h3> (พร้อม <ul><li>)
+2. <h3>🛠️ คำสั่งและขั้นตอนการปฏิบัติงาน</h3> (พร้อม <ol><li>)
+3. <h3>📦 สิ่งที่ต้องส่ง</h3> (พร้อม <p>)
+ตอบเฉพาะโค้ด HTML สวยงาม ไม่ต้องใส่ markdown backticks`;
+
+                        const res = await fetch("/api/chat", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ message: prompt })
+                        });
+                        const data = await res.json();
+                        if (data.reply) {
+                          const clean = data.reply.replace(/```html/g, '').replace(/```/g, '').trim();
+                          setContentBody(clean);
+                          setAssignmentMaxScore(10);
+                          setAllowedFileTypes(".accdb, .zip, .pdf, .docx");
+                          setRubricText("1. ความถูกต้องสมบูรณ์ของชิ้นงาน : 5 คะแนน\n2. ความถูกต้องของโครงสร้างข้อมูล/ฟังก์ชัน : 3 คะแนน\n3. ความเรียบร้อยและการส่งตรงเวลา : 2 คะแนน");
+                          toast.success("AI ช่วยร่างโจทย์และเกณฑ์ใบงานเรียบร้อยแล้ว!");
+                        } else {
+                          toast.error("ไม่สามารถเชื่อมต่อ AI ได้");
+                        }
+                      } catch (err) {
+                        toast.error("เกิดข้อผิดพลาดในการเรียก AI");
+                      } finally {
+                        setIsGeneratingAssignment(false);
+                      }
+                    }}
+                    disabled={isGeneratingAssignment}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md shadow-purple-500/20 disabled:opacity-60 transition-all"
+                  >
+                    {isGeneratingAssignment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>AI กำลังร่างโจทย์...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-amber-300" />
+                        <span>✨ AI ช่วยร่างโจทย์งาน</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* Template Quick Selectors */}
+              <div className="mt-4 pt-4 border-t border-purple-200/60 dark:border-purple-800/40">
+                <p className="text-xs font-semibold text-purple-800 dark:text-purple-300 mb-2">เลือกแม่แบบโจทย์สำเร็จรูป:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    {
+                      label: "📋 ออกแบบตารางและคีย์ (Table & PK)",
+                      body: `<h3>📌 จุดประสงค์การเรียนรู้</h3>\n<ul>\n  <li>สามารถออกแบบโครงสร้างตารางข้อมูลในโปรแกรม Microsoft Access ได้อย่างถูกต้อง</li>\n  <li>สามารถกำหนด Primary Key และชนิดข้อมูล (Data Types) ได้เหมาะสม</li>\n</ul>\n\n<h3>🛠️ คำสั่งและขั้นตอนการปฏิบัติงาน</h3>\n<ol>\n  <li>สร้างฐานข้อมูลใหม่ชื่อ <code>DB_Lab_รหัสนักศึกษา.accdb</code></li>\n  <li>สร้างตารางข้อมูลอย่างน้อย 2 ตาราง กำหนดฟิลด์และ Primary Key ให้ครบถ้วน</li>\n  <li>ป้อนข้อมูลตัวอย่างอย่างน้อยตารางละ 5 รายการ</li>\n</ol>\n\n<h3>📦 สิ่งที่ต้องส่ง</h3>\n<p>ไฟล์ฐานข้อมูล Microsoft Access (<code>.accdb</code>) หรือไฟล์บีบอัด (<code>.zip</code>)</p>`,
+                      rubric: `1. ความถูกต้องของโครงสร้างตารางและชนิดข้อมูล : 4 คะแนน\n2. การกำหนด Primary Key และความสมบูรณ์ของข้อมูล : 4 คะแนน\n3. ความเรียบร้อยและการส่งตรงเวลา : 2 คะแนน`,
+                      types: ".accdb, .zip, .pdf"
+                    },
+                    {
+                      label: "📋 ความสัมพันธ์ (Relationships)",
+                      body: `<h3>📌 จุดประสงค์การเรียนรู้</h3>\n<ul>\n  <li>สามารถสร้างความสัมพันธ์ระหว่างตารางแบบ One-to-Many ได้ถูกต้อง</li>\n  <li>สามารถกำหนด Referential Integrity เพื่อรักษาความสมบูรณ์ของข้อมูลได้</li>\n</ul>\n\n<h3>🛠️ คำสั่งและขั้นตอนการปฏิบัติงาน</h3>\n<ol>\n  <li>เปิดหน้าต่าง Relationships แล้วเพิ่มตารางหลักและตารางย่อย</li>\n  <li>เชื่อมโยงความสัมพันธ์ และติ๊กเลือก Enforce Referential Integrity</li>\n  <li>ทดสอบป้อนข้อมูลเพื่อตรวจสอบการทำงาน</li>\n</ol>\n\n<h3>📦 สิ่งที่ต้องส่ง</h3>\n<p>ไฟล์ฐานข้อมูล <code>.accdb</code> หรือไฟล์ภาพสรุปผล (<code>.pdf / .zip</code>)</p>`,
+                      rubric: `1. ความถูกต้องของการเชื่อมโยงความสัมพันธ์ One-to-Many : 5 คะแนน\n2. การตั้งค่า Referential Integrity : 3 คะแนน\n3. ความสมบูรณ์ของข้อมูล : 2 คะแนน`,
+                      types: ".accdb, .zip, .pdf"
+                    },
+                    {
+                      label: "📋 การสร้างฟอร์มและรายงาน (Forms & Reports)",
+                      body: `<h3>📌 จุดประสงค์การเรียนรู้</h3>\n<ul>\n  <li>สามารถสร้าง Form สำหรับป้อนข้อมูลและปรับแต่งดีไซน์ได้</li>\n  <li>สามารถสร้าง Report สรุปผลพร้อมจัดกลุ่มและใส่สูตรคำนวณได้</li>\n</ul>\n\n<h3>🛠️ คำสั่งและขั้นตอนการปฏิบัติงาน</h3>\n<ol>\n  <li>สร้าง Data Entry Form พร้อมปุ่ม Navigation</li>\n  <li>สร้าง Summary Report จัดกลุ่มข้อมูลและใส่สูตรหาผลรวม</li>\n</ol>\n\n<h3>📦 สิ่งที่ต้องส่ง</h3>\n<p>ไฟล์ฐานข้อมูล <code>.accdb</code> ที่มี Form และ Report ครบถ้วน</p>`,
+                      rubric: `1. การออกแบบ Form และปุ่มนำทาง : 4 คะแนน\n2. การสร้าง Report พร้อมการจัดกลุ่มและสูตรคำนวณ : 4 คะแนน\n3. ความสวยงามของชิ้นงาน : 2 คะแนน`,
+                      types: ".accdb, .zip, .pdf"
+                    },
+                    {
+                      label: "📋 การเขียนคำสั่ง SQL (Queries)",
+                      body: `<h3>📌 จุดประสงค์การเรียนรู้</h3>\n<ul>\n  <li>สามารถเขียนคำสั่ง SQL และสร้าง Query ค้นหาข้อมูลตามเงื่อนไขได้</li>\n</ul>\n\n<h3>🛠️ คำสั่งและขั้นตอนการปฏิบัติงาน</h3>\n<ol>\n  <li>สร้าง Query คัดกรองข้อมูลตามเงื่อนไขที่กำหนด</li>\n  <li>สร้าง Query คำนวณสรุปยอดข้อมูล และ Query เชื่อมโยงตาราง</li>\n</ol>\n\n<h3>📦 สิ่งที่ต้องส่ง</h3>\n<p>ไฟล์ฐานข้อมูล <code>.accdb</code> หรือไฟล์คำสั่ง (<code>.sql / .pdf</code>)</p>`,
+                      rubric: `1. ความถูกต้องของคำสั่ง SQL เงื่อนไขที่ 1 : 3 คะแนน\n2. ความถูกต้องของ Query คำนวณสรุปผล : 3 คะแนน\n3. ความถูกต้องของ Query เชื่อมหลายตาราง : 4 คะแนน`,
+                      types: ".accdb, .sql, .zip, .pdf"
+                    }
+                  ].map((tpl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setContentBody(tpl.body);
+                        setRubricText(tpl.rubric);
+                        setAllowedFileTypes(tpl.types);
+                        setAssignmentMaxScore(10);
+                        toast.success(`โหลดแม่แบบ "${tpl.label}" เรียบร้อยแล้ว`);
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-purple-200 dark:border-purple-800/60 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors shadow-sm"
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Main Assignment Content */}
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-slate-800 dark:text-slate-200">
+                คำสั่งและรายละเอียดโจทย์งานปฏิบัติ (Instructions / Description)
+              </label>
+              <p className="text-xs text-slate-500">พิมพ์คำอธิบาย จุดประสงค์ ขั้นตอนการทำงาน และสิ่งที่ต้องส่ง (รองรับ HTML และข้อความทั่วไป)</p>
+              <textarea 
+                rows={10}
+                value={contentBody}
+                onChange={(e) => setContentBody(e.target.value)}
+                placeholder="ระบุคำสั่งและโจทย์งานปฏิบัติ เช่น ให้นักเรียนออกแบบฐานข้อมูล..."
+                className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 font-sans text-sm leading-relaxed"
+              ></textarea>
+            </div>
+
+            {/* Settings Grid: Max Score, Due Date, Allowed Extensions */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Max Score */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <Award className="w-5 h-5 text-amber-500" />
+                  <label className="font-bold text-slate-800 dark:text-white text-sm">คะแนนเต็ม (Max Score)</label>
+                </div>
+                <input 
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={assignmentMaxScore}
+                  onChange={(e) => setAssignmentMaxScore(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                  onBlur={() => {
+                    if (assignmentMaxScore === '') setAssignmentMaxScore(10);
+                  }}
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm font-semibold"
+                  placeholder="10"
+                />
+                <p className="text-xs text-slate-500 mt-2">คะแนนเต็มสำหรับงานปฏิบัตินี้</p>
+              </div>
+
+              {/* Due Date */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-5 h-5 text-blue-500" />
+                  <label className="font-bold text-slate-800 dark:text-white text-sm">กำหนดส่งงาน (Due Date)</label>
+                </div>
+                <input 
+                  type="date"
+                  value={assignmentDueDate}
+                  onChange={(e) => setAssignmentDueDate(e.target.value)}
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                <p className="text-xs text-slate-500 mt-2">วันสุดท้ายที่เปิดรับงาน (เว้นว่างได้)</p>
+              </div>
+
+              {/* Allowed File Types */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileCheck className="w-5 h-5 text-emerald-500" />
+                  <label className="font-bold text-slate-800 dark:text-white text-sm">สกุลไฟล์ที่ยอมรับ</label>
+                </div>
+                <input 
+                  type="text"
+                  value={allowedFileTypes}
+                  onChange={(e) => setAllowedFileTypes(e.target.value)}
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono text-xs"
+                  placeholder=".accdb, .sql, .pdf, .zip, .docx"
+                />
+                <p className="text-xs text-slate-500 mt-2">คั่นด้วยเครื่องหมายจุลภาค (,)</p>
+              </div>
+            </div>
+
+            {/* Attached Reference / Worksheet Download Link */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-indigo-500" />
+                <h4 className="font-bold text-slate-800 dark:text-white text-base">ไฟล์เอกสารใบงาน / เทมเพลตประกอบให้นักเรียนดาวน์โหลด (Optional)</h4>
+              </div>
+              <p className="text-xs text-slate-500">หากมีไฟล์ตัวอย่าง แบบฟอร์ม หรือไฟล์ฐานข้อมูลเริ่มต้น ให้นักเรียนดาวน์โหลดไปทำต่อ สามารถใส่ URL หรือชื่อไฟล์ได้ที่นี่</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">URL ไฟล์ใบงาน / ไฟล์ตัวอย่าง</label>
+                  <input 
+                    type="url"
+                    value={worksheetFileUrl}
+                    onChange={(e) => setWorksheetFileUrl(e.target.value)}
+                    placeholder="https://... หรือลิงก์ Google Drive / Supabase"
+                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">ชื่อแสดงผลของไฟล์ดาวน์โหลด</label>
+                  <input 
+                    type="text"
+                    value={worksheetFileName}
+                    onChange={(e) => setWorksheetFileName(e.target.value)}
+                    placeholder="เช่น ใบงานที่ 1_การสร้างตาราง.pdf หรือ DB_Template.accdb"
+                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Rubric / Scoring Criteria */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-teal-500" />
+                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200">
+                  เกณฑ์การให้คะแนน (Scoring Rubric)
+                </label>
+              </div>
+              <p className="text-xs text-slate-500">ระบุเกณฑ์การประเมินคะแนนเพื่อให้นักเรียนเข้าใจมาตรฐานการตรวจ</p>
+              <textarea 
+                rows={4}
+                value={rubricText}
+                onChange={(e) => setRubricText(e.target.value)}
+                placeholder="เช่น 1. ความถูกต้องของตารางและคีย์หลัก (4 คะแนน)&#10;2. ความสมบูรณ์ของความสัมพันธ์ (4 คะแนน)&#10;3. การส่งตรงเวลา (2 คะแนน)"
+                className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 font-sans text-sm"
+              ></textarea>
             </div>
           </div>
         )}
