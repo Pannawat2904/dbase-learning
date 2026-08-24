@@ -38,14 +38,29 @@ export default async function StudentDashboard() {
 
   let completedLessonIds: string[] = [];
   if (user) {
-    // Fetch global progress (no courseId filter)
-    const { data } = await supabase
+    // Fetch global progress (progress + scores + assignments)
+    const { data: pData } = await supabase
       .from('student_lesson_progress')
       .select('lesson_id')
       .eq('student_id', user.id);
-    if (data) {
-      completedLessonIds = data.map(d => String(d.lesson_id));
-    }
+
+    const { data: sData } = await supabase
+      .from('student_scores')
+      .select('lesson_id')
+      .eq('student_id', user.id);
+
+    const { data: aData } = await supabase
+      .from('student_assignments')
+      .select('lesson_id')
+      .eq('student_id', user.id);
+
+    const combinedSet = new Set([
+      ...(pData || []).map(p => String(p.lesson_id)),
+      ...(sData || []).map(s => String(s.lesson_id)),
+      ...(aData || []).map(a => String(a.lesson_id)),
+    ].filter(Boolean));
+
+    completedLessonIds = Array.from(combinedSet);
   }
 
   let scoresData: any[] = [];

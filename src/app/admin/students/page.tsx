@@ -1,5 +1,6 @@
 import { Search, Filter, CheckCircle2, XCircle, Users, User } from "lucide-react";
 import { getStudents, getAllStudentScores, getAllStudentProgress, getCourses, getAllStudentAssignments } from "@/utils/supabase/queries";
+import { createClient } from "@/utils/supabase/server";
 import StudentActionsMenu from "@/components/admin/StudentActionsMenu";
 import AutoRefresh from "@/components/admin/AutoRefresh";
 import ExportExcelButton from "@/components/admin/ExportExcelButton";
@@ -8,14 +9,16 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function AdminStudentsPage() {
+  const supabase = await createClient();
   const dbStudents = await getStudents();
   const allScores = await getAllStudentScores();
   const allProgress = await getAllStudentProgress();
   const allAssignments = await getAllStudentAssignments();
   const courses = await getCourses();
   
-  // Calculate total lessons across all courses
-  const totalLessons = courses.reduce((sum, c) => sum + (c.totalLessons || 0), 0) || 1;
+  // Calculate total lessons accurately from lessons table
+  const { data: allDbLessons } = await supabase.from('lessons').select('id');
+  const totalLessons = allDbLessons?.length || courses.reduce((sum, c) => sum + (c.totalLessons || 0), 0) || 1;
   const nowTime = Date.now();
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
   
@@ -35,14 +38,14 @@ export default async function AdminStudentsPage() {
     const totalAssignmentScore = studentAssignmentsList.reduce((sum: number, a: any) => sum + (a.score || 0), 0);
     const assignmentText = studentAssignmentsList.length > 0 ? `${totalAssignmentScore}` : "-";
     
-    // Calculate progress based on unique lesson interactions
+    // Calculate progress based on unique lesson interactions (progress + scores + assignments)
     const studentCompletedLessonsSet = new Set([
-      ...allProgress.filter((p: any) => p.student_id === student.id).map((p: any) => p.lesson_id),
-      ...studentScores.map((s: any) => s.lesson_id),
-      ...allAssignments.filter((a: any) => a.student_id === student.id).map((a: any) => a.lesson_id)
+      ...allProgress.filter((p: any) => p.student_id === student.id).map((p: any) => String(p.lesson_id)),
+      ...studentScores.map((s: any) => String(s.lesson_id)),
+      ...allAssignments.filter((a: any) => a.student_id === student.id).map((a: any) => String(a.lesson_id))
     ].filter(Boolean)); // filter out null/undefined
     
-    const progress = Math.round((studentCompletedLessonsSet.size / totalLessons) * 100);
+    const progress = Math.min(100, Math.round((studentCompletedLessonsSet.size / totalLessons) * 100));
     
     // Calculate last active & real-time status
     let lastActive = "ยังไม่เคยเข้าเรียน";
@@ -64,7 +67,11 @@ export default async function AdminStudentsPage() {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
       });
 
-      if (nowTime - maxTime < sevenDaysMs) {
+      if (progress >= 100 || (postTestScore && (postTestScore.score / (postTestScore.total_score || 1)) >= 0.5)) {
+        status = "Completed";
+        statusLabel = "เรียนจบแล้ว";
+        statusColor = "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800";
+      } else if (nowTime - maxTime < sevenDaysMs) {
         status = "Active";
         statusLabel = "กำลังเรียน";
         statusColor = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
@@ -79,7 +86,7 @@ export default async function AdminStudentsPage() {
       id: student.id,
       name: student.full_name || "ไม่ระบุชื่อ",
       email: student.email,
-      progress: Math.min(100, progress),
+      progress: progress,
       lastActive,
       status,
       statusLabel,
@@ -88,7 +95,7 @@ export default async function AdminStudentsPage() {
       preTestId: preTestScore?.lesson_id,
       postTest: postTestScore ? `${postTestScore.score}/${postTestScore.total_score}` : "-",
       postTestId: postTestScore?.lesson_id,
-      postTestPassed: postTestScore ? (postTestScore.score / postTestScore.total_score >= 0.6) : false,
+      postTestPassed: postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false,
       quiz: quizText,
       assignment: assignmentText,
       avatar_url: student.avatar_url || ""

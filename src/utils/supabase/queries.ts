@@ -838,36 +838,40 @@ export async function getCertificates(studentId: string) {
 }
 
 export async function issueCertificate(studentId: string, courseId: string, moduleId?: string) {
-  await requireAdmin();
-  const supabase = await createClient();
-  
-  let query = supabase.from('certificates').select('id').eq('student_id', studentId).eq('course_id', courseId);
-  if (moduleId) {
-    query = query.eq('module_id', moduleId);
-  } else {
-    query = query.is('module_id', null);
-  }
-
-  // Check if already issued
-  const { data: existing } = await query.single();
+  try {
+    const supabase = await createClient();
     
-  if (existing) return existing;
+    let query = supabase.from('certificates').select('id').eq('student_id', studentId).eq('course_id', courseId);
+    if (moduleId) {
+      query = query.eq('module_id', moduleId);
+    } else {
+      query = query.is('module_id', null);
+    }
 
-  const { data, error } = await supabase
-    .from('certificates')
-    .insert([{ 
-      student_id: studentId, 
-      course_id: courseId,
-      module_id: moduleId || null
-    }])
-    .select()
-    .single();
+    // Check if already issued
+    const { data: existing } = await query.maybeSingle();
+      
+    if (existing) return existing;
 
-  if (error) {
-    console.error('Error issuing certificate:', error);
+    const { data, error } = await supabase
+      .from('certificates')
+      .insert([{ 
+        student_id: studentId, 
+        course_id: courseId,
+        module_id: moduleId || null
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error issuing certificate:', error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('Error in issueCertificate:', err);
     return null;
   }
-  return data;
 }
 
 export async function deleteExamScore(studentId: string, lessonId: string) {

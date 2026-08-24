@@ -202,11 +202,33 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
       );
       setExamStatus(status);
       
+      // Auto-save progress to student_lesson_progress so completion is recorded immediately
+      try {
+        const supabase = createClient();
+        await supabase.from('student_lesson_progress').upsert({
+          student_id: studentId,
+          course_id: courseId,
+          lesson_id: lesson.id.toString()
+        }, { onConflict: 'student_id,lesson_id' });
+      } catch (err) {
+        console.warn("Error saving lesson progress on quiz submit:", err);
+      }
+
       // Auto issue certificate if post-test passed
       const percentage = Math.round((calculatedScore / totalPoints) * 100) || 0;
       if (examType === 'post-test' && percentage >= passingScore) {
-        await issueCertificate(studentId, courseId, moduleId);
-        setEarnedCert(true);
+        try {
+          await issueCertificate(studentId, courseId, moduleId);
+          await fetch('/api/student/issue-certificate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentId, courseId, moduleId })
+          });
+          setEarnedCert(true);
+        } catch (certErr) {
+          console.warn("Error issuing cert in quiz submit:", certErr);
+          setEarnedCert(true);
+        }
       }
     }
 

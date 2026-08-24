@@ -12,10 +12,6 @@ export default async function CertificatesPage() {
   let earnedCertificates: any[] = [];
   let allModules: any[] = [];
   
-  if (user) {
-    earnedCertificates = await getCertificates(user.id);
-  }
-  
   // Fetch all modules to show as available certificates
   const { data: modules } = await supabase
     .from('modules')
@@ -26,9 +22,64 @@ export default async function CertificatesPage() {
     allModules = modules;
   }
 
+  if (user) {
+    earnedCertificates = await getCertificates(user.id);
+
+    // Auto-recovery: If student passed post-test or finished lessons but certificate row was missing, issue now!
+    try {
+      const { data: scores } = await supabase
+        .from('student_scores')
+        .select('*')
+        .eq('student_id', user.id);
+
+      if (allModules && allModules.length > 0) {
+        for (const mod of allModules) {
+          const hasCert = earnedCertificates.some(cert => 
+            String(cert.module_id) === String(mod.id) || 
+            (String(cert.course_id) === String(mod.course_id) && !cert.module_id)
+          );
+
+          if (!hasCert) {
+            // Check if student passed post-test for this course
+            const passedPostTest = scores?.find(s => 
+              (String(s.course_id) === String(mod.course_id)) && 
+              (s.exam_type === 'post-test' || (s.lesson_id && String(s.lesson_id).includes('post'))) && 
+              ((s.score / (s.total_score || 1)) >= 0.5)
+            );
+
+            if (passedPostTest) {
+              const { data: newCert } = await supabase
+                .from('certificates')
+                .insert([{
+                  student_id: user.id,
+                  course_id: mod.course_id,
+                  module_id: mod.id
+                }])
+                .select(`
+                  *,
+                  course:courses (title, instructor),
+                  module:modules (title)
+                `)
+                .single();
+
+              if (newCert) {
+                earnedCertificates.push(newCert);
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Auto-certificate recovery check:", err);
+    }
+  }
+
   // Map modules with earned certificates
   const certificateItems = allModules.map(module => {
-    const earned = earnedCertificates.find(cert => cert.module_id === module.id);
+    const earned = earnedCertificates.find(cert => 
+      String(cert.module_id) === String(module.id) || 
+      (String(cert.course_id) === String(module.course_id))
+    );
     return {
       module,
       earned,

@@ -29,10 +29,24 @@ export default function CourseCatalog() {
           .from('student_lesson_progress')
           .select('lesson_id')
           .eq('student_id', user.id);
+
+        const { data: scoresData } = await supabase
+          .from('student_scores')
+          .select('lesson_id')
+          .eq('student_id', user.id);
+
+        const { data: assignData } = await supabase
+          .from('student_assignments')
+          .select('lesson_id')
+          .eq('student_id', user.id);
         
-        if (progressData) {
-          setCompletedLessonIds(progressData.map(p => String(p.lesson_id)));
-        }
+        const combined = new Set([
+          ...(progressData || []).map(p => String(p.lesson_id)),
+          ...(scoresData || []).map(s => String(s.lesson_id)),
+          ...(assignData || []).map(a => String(a.lesson_id))
+        ].filter(Boolean));
+
+        setCompletedLessonIds(Array.from(combined));
       }
       setCourses(data || []);
       

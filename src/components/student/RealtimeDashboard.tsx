@@ -87,15 +87,30 @@ export default function RealtimeDashboard({
 
   const refreshProgress = useCallback(async () => {
     const supabase = createClient();
-    // Fetch global progress instead of filtering by course
-    const { data } = await supabase
+    // Fetch global progress (progress + scores + assignments)
+    const { data: pData } = await supabase
       .from("student_lesson_progress")
       .select("lesson_id")
       .eq("student_id", userId);
-    if (data) {
-      setCompletedIds(data.map((d: any) => String(d.lesson_id)));
-      setLastUpdated(new Date());
-    }
+
+    const { data: sData } = await supabase
+      .from("student_scores")
+      .select("lesson_id")
+      .eq("student_id", userId);
+
+    const { data: aData } = await supabase
+      .from("student_assignments")
+      .select("lesson_id")
+      .eq("student_id", userId);
+
+    const combinedSet = new Set([
+      ...(pData || []).map(p => String(p.lesson_id)),
+      ...(sData || []).map(s => String(s.lesson_id)),
+      ...(aData || []).map(a => String(a.lesson_id)),
+    ].filter(Boolean));
+
+    setCompletedIds(Array.from(combinedSet));
+    setLastUpdated(new Date());
   }, [userId]);
 
   useEffect(() => {
