@@ -127,17 +127,17 @@ export default async function StudentProfile() {
                 year: 'numeric', month: 'long', day: 'numeric'
               });
               
-              const chibiThumb = index % 2 === 0 ? '/images/certificates/chibi_cert_1.jpg' : '/images/certificates/chibi_cert_2.jpg';
+              const teacherThumb = index % 2 === 0 ? '/images/certificates/teacher_cert_1.jpg' : '/images/certificates/teacher_cert_2.jpg';
               return (
                 <div key={cert.id} className="vision-glass-panel shimmer p-1 relative overflow-hidden group rounded-3xl">
                   <div className={`absolute inset-0 bg-gradient-to-br ${isFirst ? 'from-amber-200/20 via-yellow-100/10' : 'from-blue-200/20 via-sky-100/10'} to-transparent z-0`}></div>
                   <div className="relative z-10 bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 rounded-2xl p-5 h-full flex flex-col md:flex-row items-center md:items-start gap-5">
                     
-                    {/* Chibi Cover Avatar */}
+                    {/* Teacher Cover Avatar */}
                     <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 rounded-2xl overflow-hidden border-2 border-amber-300 dark:border-amber-700/60 shadow-md shadow-amber-500/10 group-hover:scale-105 transition-transform duration-500 relative">
                       <img 
-                        src={chibiThumb} 
-                        alt="Certificate Chibi"
+                        src={teacherThumb} 
+                        alt="Certificate Cover"
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-1.5 right-1.5 bg-amber-500 text-white rounded-full p-1 shadow-sm">

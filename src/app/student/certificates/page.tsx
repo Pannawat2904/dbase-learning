@@ -115,11 +115,11 @@ export default async function CertificatesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {certificateItems.map((item, idx) => {
             const isEarned = !!item.earned;
-            // Alternate cute chibi artworks for earned certificates
-            const chibiEarnedImg = idx % 2 === 0 
-              ? '/images/certificates/chibi_cert_1.jpg' 
-              : '/images/certificates/chibi_cert_2.jpg';
-            const chibiLockedImg = '/images/certificates/chibi_cert_locked.jpg';
+            // Alternate male teacher database artwork for earned certificates
+            const teacherEarnedImg = idx % 2 === 0 
+              ? '/images/certificates/teacher_cert_1.jpg' 
+              : '/images/certificates/teacher_cert_2.jpg';
+            const teacherLockedImg = '/images/certificates/teacher_cert_locked.jpg';
             
             return (
               <div 
@@ -130,17 +130,17 @@ export default async function CertificatesPage() {
                     : 'opacity-90 hover:opacity-100 border-slate-200 dark:border-slate-800'
                 }`}
               >
-                {/* Cute Chibi Cover Image Container */}
+                {/* Modern Teacher Cover Image Container */}
                 <div className={`aspect-[1.33] rounded-2xl mb-5 relative overflow-hidden flex items-center justify-center transition-all duration-500 border-2 shadow-sm ${
                   isEarned 
                     ? 'border-amber-300/80 dark:border-amber-700/60 shadow-amber-500/10 group-hover:shadow-lg' 
                     : 'border-slate-200 dark:border-slate-700/60 bg-slate-100 dark:bg-slate-800'
                 }`}>
                   <img 
-                    src={isEarned ? chibiEarnedImg : chibiLockedImg} 
+                    src={isEarned ? teacherEarnedImg : teacherLockedImg} 
                     alt={item.module.title}
                     className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${
-                      !isEarned ? 'brightness-[0.7] contrast-[0.95] grayscale-[0.2]' : ''
+                      !isEarned ? 'brightness-[0.7] contrast-[0.95]' : ''
                     }`}
                   />
 
