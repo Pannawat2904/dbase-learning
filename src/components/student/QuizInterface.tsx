@@ -1,7 +1,6 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import { HelpCircle, Clock, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft } from "lucide-react";
+import Link from "next/link";
+import { HelpCircle, Clock, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft, RotateCcw, MessageSquare, Award } from "lucide-react";
 import { saveExamScore, issueCertificate } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
 
@@ -24,6 +23,8 @@ interface QuizInterfaceProps {
   onExamEnd?: () => void;
 }
 
+const MAX_ATTEMPTS = 3;
+
 export default function QuizInterface({ lesson, courseId, moduleId, existingScore, onComplete, onExamStart, onExamEnd }: QuizInterfaceProps) {
   const isFormalTest = lesson.type === 'test' || (lesson.title || '').includes('แบบทดสอบ');
   const [hasStarted, setHasStarted] = useState(!isFormalTest);
@@ -38,6 +39,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
   const [examStatus, setExamStatus] = useState<string>(existingScore?.status || 'graded');
   const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>([]);
   const [showReview, setShowReview] = useState(false);
+  const [attemptsCount, setAttemptsCount] = useState<number>(existingScore ? 1 : 0);
 
   const originalQuestions: Question[] = lesson.content?.questions || lesson.questions || [];
   const timeLimit = lesson.content?.timeLimit || lesson.timeLimit || 0; // in minutes
@@ -52,19 +54,38 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
   }, [lesson.id, originalQuestions]);
 
   useEffect(() => {
-    // Get student ID
+    // Get student ID and fetch attempts history
     const getStudent = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
+      const uid = user ? user.id : "dev-student-123";
+      setStudentId(uid);
+
+      // Fetch all score attempts for this student & lesson
       if (user) {
-        setStudentId(user.id);
-      } else {
-        // Fallback for dev mode
-        setStudentId("dev-student-123");
+        try {
+          const { data: scores } = await supabase
+            .from('student_scores')
+            .select('*')
+            .eq('student_id', uid)
+            .eq('lesson_id', lesson.id.toString())
+            .order('created_at', { ascending: false });
+
+          if (scores && scores.length > 0) {
+            setAttemptsCount(scores.length);
+            const latest = scores[0];
+            setScore(latest.score || 0);
+            setAnswers(latest.answers || {});
+            setExamStatus(latest.status || 'graded');
+            setIsFinished(true);
+          }
+        } catch (err) {
+          console.error("Error fetching score attempts:", err);
+        }
       }
     };
     getStudent();
-  }, []);
+  }, [lesson.id]);
 
   useEffect(() => {
     let timer: any;
@@ -119,6 +140,21 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
     if (onExamStart) onExamStart();
   };
 
+  const handleRetake = () => {
+    setIsFinished(false);
+    setHasStarted(true);
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setShowReview(false);
+    if (originalQuestions.length > 0) {
+      setShuffledQuestions([...originalQuestions].sort(() => Math.random() - 0.5));
+    }
+    if (timeLimit > 0) {
+      setTimeLeft(timeLimit * 60);
+    }
+    if (onExamStart) onExamStart();
+  };
+
   const handleAnswerSelect = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
@@ -139,6 +175,9 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
     setScore(calculatedScore);
 
+    const nextAttempt = attemptsCount + 1;
+    setAttemptsCount(nextAttempt);
+
     if (studentId) {
       // Determine if it's pre-test or post-test based on lesson title (simple heuristic)
       let examType = 'quiz';
@@ -157,7 +196,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
         calculatedScore, 
         totalPoints, 
         examType, 
-        answers, 
+        { ...answers, attempt_number: nextAttempt, max_attempts: MAX_ATTEMPTS }, 
         status
       );
       setExamStatus(status);
@@ -217,6 +256,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
               <li>ห้ามคลิกขวา หรือคัดลอกข้อความในข้อสอบ</li>
               <li>ห้ามสลับหน้าจอ (Tab) ไปยังโปรแกรมอื่นระหว่างทำข้อสอบ ระบบจะมีการแจ้งเตือนหากตรวจพบ</li>
               {timeLimit > 0 && <li>ระบบจะส่งข้อสอบอัตโนมัติเมื่อหมดเวลา</li>}
+              <li>สำหรับแบบทดสอบหลังเรียน หากทำไม่ผ่าน สามารถเริ่มทำใหม่ได้ไม่เกิน 3 ครั้ง</li>
             </ul>
           </div>
         </div>
@@ -233,14 +273,34 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
   if (isFinished) {
     const percentage = Math.round((score / totalPoints) * 100) || 0;
-    const passed = percentage >= (lesson.passingScore || 60);
+    const passingScore = lesson.passingScore || 60;
+    const passed = percentage >= passingScore;
     const title = (lesson.title || '').toLowerCase();
     const isPreTest = title.includes('pre') || title.includes('ก่อนเรียน');
+    const isPostTest = !isPreTest && (lesson.type === 'test' || title.includes('post') || title.includes('หลังเรียน') || title.includes('ท้ายบท'));
+    const attemptsUsed = Math.max(1, attemptsCount);
+    const attemptsLeft = Math.max(0, MAX_ATTEMPTS - attemptsUsed);
+    const canRetake = !passed && isPostTest && attemptsLeft > 0;
+    const outOfAttempts = !passed && isPostTest && attemptsLeft === 0;
 
     return (
       <div className={`w-full ${showReview ? 'h-auto' : 'h-full min-h-[500px]'} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 md:p-12 shadow-sm flex flex-col ${showReview ? 'items-start' : 'items-center justify-center text-center'}`}>
         <div className={`w-full flex flex-col items-center justify-center text-center transition-all ${showReview ? 'mb-12' : ''}`}>
-          {existingScore && (
+          
+          {/* Attempt Status Badge */}
+          {isPostTest && (
+            <div className="mb-6 inline-flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-semibold border border-slate-200 dark:border-slate-700">
+              <span className="text-slate-600 dark:text-slate-300">
+                ทำแบบทดสอบไปแล้ว: <strong className="text-blue-600 dark:text-blue-400">{attemptsUsed}/{MAX_ATTEMPTS} ครั้ง</strong>
+              </span>
+              <span className="text-slate-300 dark:text-slate-600">|</span>
+              <span className={attemptsLeft > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 font-bold"}>
+                {attemptsLeft > 0 ? `เหลือโอกาสอีก ${attemptsLeft} ครั้ง` : "ใช้สิทธิ์ครบแล้ว"}
+              </span>
+            </div>
+          )}
+
+          {isPreTest && existingScore && (
             <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium border border-slate-200 dark:border-slate-700">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               คุณได้ทำแบบทดสอบนี้ไปแล้ว
@@ -260,14 +320,38 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
         <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">
           {examStatus === 'pending' ? 'รอการตรวจให้คะแนน' :
            isPreTest ? 'ทำแบบทดสอบก่อนเรียนเสร็จสิ้น' : 
-           passed ? 'ยินดีด้วย! คุณสอบผ่าน' : 'พยายามใหม่อีกครั้ง!'}
+           passed ? 'ยินดีด้วย! คุณสอบผ่าน' : 'ผลการทดสอบ: ยังไม่ผ่านเกณฑ์'}
         </h2>
-        <p className="text-slate-500 dark:text-slate-400 mb-8">
+        <p className="text-slate-500 dark:text-slate-400 mb-6">
           {examStatus === 'pending' 
             ? 'ข้อสอบของคุณถูกส่งไปยังผู้สอนแล้ว กรุณารอผลการตรวจคะแนน' 
-            : `คุณได้คะแนน ${score} / ${totalPoints} คะแนน ${isPreTest ? '' : `(${percentage}%)`}`}
+            : `คุณได้คะแนน ${score} / ${totalPoints} คะแนน ${isPreTest ? '' : `(${percentage}%) — เกณฑ์ผ่านคือ ${passingScore}%`}`}
         </p>
 
+        {/* Post-test 3-Attempt Indicators */}
+        {isPostTest && !passed && (
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {[1, 2, 3].map((num) => {
+              const isCurrent = num === attemptsUsed;
+              const isPast = num <= attemptsUsed;
+              return (
+                <div 
+                  key={num} 
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                    isPast 
+                      ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400' 
+                      : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-400'
+                  }`}
+                >
+                  <span>ครั้งที่ {num}</span>
+                  {isPast ? <span>(ไม่ผ่าน)</span> : <span>(ว่าง)</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Certificate Banner when Passed */}
         {earnedCert && (
           <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl animate-in fade-in zoom-in duration-500">
             <h3 className="font-bold text-amber-600 dark:text-amber-400 mb-2">🎉 ยินดีด้วย! คุณได้รับใบประกาศนียบัตร</h3>
@@ -283,12 +367,58 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
           </div>
         )}
 
-        <button 
-          onClick={onComplete}
-          className="bg-slate-800 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 font-medium px-8 py-3 rounded-xl shadow-sm transition-opacity"
-        >
-          {isPreTest ? 'เข้าสู่บทเรียน' : 'กลับไปหน้าบทเรียน'}
-        </button>
+        {/* Out of Attempts Alert */}
+        {outOfAttempts && (
+          <div className="mb-8 p-5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-2xl text-left max-w-lg mx-auto">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-red-800 dark:text-red-300 space-y-1">
+                <p className="font-bold text-base">คุณใช้สิทธิ์ทำแบบทดสอบครบ 3 ครั้งแล้ว</p>
+                <p className="text-xs text-red-600/90 dark:text-red-400 leading-relaxed">
+                  คุณทำแบบทดสอบหลังเรียนครบตามโควต้าที่ระบบกำหนดแล้ว (3/3 ครั้ง) หากต้องการสอบแก้ตัวหรือขอคำปรึกษาเพิ่มเติม กรุณาส่งข้อความหาคุณครูผู้สอนผ่านระบบกล่องข้อความ
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          
+          {/* Retake Button (Allowed only if failed and has attempts left <= 3) */}
+          {canRetake && (
+            <button 
+              onClick={handleRetake}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold px-8 py-3.5 rounded-2xl shadow-lg shadow-blue-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              <RotateCcw className="w-5 h-5" />
+              <span>เริ่มทำแบบทดสอบใหม่ (ครั้งที่ {attemptsUsed + 1}/{MAX_ATTEMPTS})</span>
+            </button>
+          )}
+
+          {/* Contact Teacher Button when out of attempts */}
+          {outOfAttempts && (
+            <Link
+              href="/student/messages"
+              className="inline-flex items-center gap-2 px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md transition-all"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>ส่งข้อความถึงคุณครู</span>
+            </Link>
+          )}
+
+          {/* Return / Proceed Button */}
+          <button 
+            onClick={onComplete}
+            className={`font-medium px-8 py-3.5 rounded-2xl transition-all ${
+              canRetake 
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200' 
+                : 'bg-slate-800 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-sm'
+            }`}
+          >
+            {isPreTest ? 'เข้าสู่บทเรียน' : 'กลับไปหน้าบทเรียน'}
+          </button>
+        </div>
 
           {!isPreTest && !showReview && (
             <button 
