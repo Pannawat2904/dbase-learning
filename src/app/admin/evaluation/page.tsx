@@ -19,6 +19,7 @@ import {
   FileText
 } from "lucide-react";
 import AutoRefresh from "@/components/admin/AutoRefresh";
+import SatisfactionCharts from "@/components/admin/SatisfactionCharts";
 import surveyData from "@/data/satisfaction-survey.json";
 
 export default function AdminEvaluationPage() {
@@ -241,6 +242,9 @@ export default function AdminEvaluationPage() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Charts & Graphs Section */}
+      <SatisfactionCharts analytics={analytics} dimensions={surveyData.dimensions} />
 
       {/* 4 Dimension Summary Cards */}
       <div className="space-y-4">
