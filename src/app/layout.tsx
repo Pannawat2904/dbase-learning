@@ -10,8 +10,22 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "DBASE Learning AI",
+  metadataBase: new URL('https://dbase-learning.vercel.app'),
+  title: "DBASE Learning AI | ระบบการเรียนรู้อัจฉริยะ",
   description: "ระบบการเรียนรู้อัจฉริยะสำหรับรายวิชาโปรแกรมฐานข้อมูล DBASE Learning AI",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon.svg' }
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
+  openGraph: {
+    title: "DBASE Learning AI | ระบบการเรียนรู้อัจฉริยะ",
+    description: "ระบบการเรียนรู้อัจฉริยะสำหรับรายวิชาโปรแกรมฐานข้อมูล DBASE Learning AI",
+    images: [{ url: '/icon.svg', width: 512, height: 512, alt: 'DBASE Learning AI' }],
+  }
 };
 
 export default function RootLayout({
