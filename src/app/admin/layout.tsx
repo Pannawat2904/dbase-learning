@@ -8,11 +8,11 @@ import {
   Users, 
   Settings, 
   LogOut, 
-  Menu,
-  X,
-  Database,
-  MessageSquare,
-  Bot,
+  Menu, 
+  X, 
+  Database, 
+  MessageSquare, 
+  Bot, 
   UserCog,
   User,
   Star,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logoutTeacher } from "./login/actions";
+import { createClient } from "@/utils/supabase/client";
 
 function getCookie(name: string) {
   if (typeof document === 'undefined') return undefined;
@@ -41,6 +42,19 @@ export default function AdminLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [teacherName, setTeacherName] = useState('ผู้สอน');
   const [teacherAvatar, setTeacherAvatar] = useState<string | undefined>(undefined);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await fetch('/api/admin/unread-messages', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(Number(data.unreadCount || 0));
+      }
+    } catch (e) {
+      console.warn("Error fetching unread messages count:", e);
+    }
+  };
 
   useEffect(() => {
     // 1. Initial immediate state from decoded cookies
@@ -64,6 +78,32 @@ export default function AdminLayout({
       .catch((err) => {
         console.warn('Teacher session check:', err.message);
       });
+
+    // 3. Fetch unread messages
+    fetchUnreadCount();
+
+    // 4. Setup Realtime subscription and timer for unread messages badge
+    const supabase = createClient();
+    const channel = supabase.channel('admin_messages_badge_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => {
+          fetchUnreadCount();
+        }
+      )
+      .subscribe();
+
+    const intervalTimer = setInterval(fetchUnreadCount, 5000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(intervalTimer);
+    };
   }, [pathname]);
 
   const handleLogout = async (e: React.FormEvent) => {
@@ -100,13 +140,19 @@ export default function AdminLayout({
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center relative">
             <Database className="w-4 h-4 text-white" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+            )}
           </div>
           <span className="font-bold text-slate-800 dark:text-white">ระบบจัดการผู้สอน</span>
         </div>
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-600 dark:text-slate-300">
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-600 dark:text-slate-300 relative">
           {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse"></span>
+          )}
         </button>
       </div>
 
@@ -120,8 +166,14 @@ export default function AdminLayout({
           
           {/* Logo Area */}
           <div className="p-6 hidden md:flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 relative">
               <Database className="w-5 h-5 text-white" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-slate-900"></span>
+                </span>
+              )}
             </div>
             <div>
               <h1 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">DBASE AI</h1>
@@ -133,20 +185,30 @@ export default function AdminLayout({
           <nav className="flex-1 px-4 py-6 md:py-2 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+              const isInbox = item.name === "กล่องข้อความ";
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={() => setIsSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                    flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative
                     ${isActive 
                       ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold' 
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'}
                   `}
                 >
-                  <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
-                  {item.name}
+                  <div className="flex items-center gap-3">
+                    <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
+                    <span>{item.name}</span>
+                  </div>
+
+                  {/* Unread Red Number Badge */}
+                  {isInbox && unreadCount > 0 && (
+                    <span className="inline-flex items-center justify-center bg-red-500 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-full min-w-[22px] h-5 text-center shadow-md shadow-red-500/30 animate-pulse">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

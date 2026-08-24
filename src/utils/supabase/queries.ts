@@ -353,6 +353,26 @@ export async function markChatAsRead(studentId: string, roleToMark: 'admin' | 's
   return true;
 }
 
+export async function getAdminUnreadMessagesCount(): Promise<number> {
+  try {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('sender_role', 'student')
+      .eq('is_read', false);
+
+    if (error) {
+      console.error('Error fetching admin unread count:', error);
+      return 0;
+    }
+    return count || 0;
+  } catch (err) {
+    console.error('Error in getAdminUnreadMessagesCount:', err);
+    return 0;
+  }
+}
+
 // Course Content Management (Modules & Lessons)
 export async function createModule(courseId: string, title: string, orderIndex: number) {
   await requireAdmin();

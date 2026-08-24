@@ -25,7 +25,7 @@ export default function AdminInboxPage() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'chat_messages'
+          table: 'messages'
         },
         (payload) => {
           // If the message is for the currently open chat, update the chat
@@ -58,7 +58,7 @@ export default function AdminInboxPage() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'chat_messages',
+          table: 'messages',
           filter: `student_id=eq.${selectedStudentId}`
         },
         (payload) => {
