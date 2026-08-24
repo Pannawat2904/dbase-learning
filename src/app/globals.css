@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  :root {
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    
+    --glass-bg: rgba(255, 255, 255, 0.25);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-highlight: rgba(255, 255, 255, 0.6);
+    --glass-shadow: rgba(31, 38, 135, 0.05);
+  }
+
+  .dark {
+    --background: #0f172a;
+    --foreground: #f8fafc;
+    
+    --glass-bg: rgba(15, 23, 42, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-highlight: rgba(255, 255, 255, 0.05);
+    --glass-shadow: rgba(0, 0, 0, 0.5);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    min-height: 100vh;
+    transition: background-color 0.3s ease;
+  }
+
+  /* Fix mobile tap reliability */
+  a, button, input, select, textarea {
+    touch-action: manipulation;
+  }
+  
+  button {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .vision-glass {
+    background-color: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px 0 var(--glass-shadow);
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  
+  .vision-glass-panel {
+    background-color: var(--glass-bg);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 24px 0 var(--glass-shadow);
+    transition: all 0.3s ease;
+  }
+
+  .vision-glass::before, .vision-glass-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--glass-highlight) 0%, rgba(255,255,255,0) 40%, var(--glass-highlight) 100%);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+    pointer-events: none;
+    opacity: 0.8;
+  }
+  
+  .vision-glass-hoverable {
+    cursor: pointer;
+  }
+  
+  .vision-glass-hoverable:hover {
+    transform: translateY(-4px) scale(1.01);
+    background-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 20px 40px -10px var(--glass-shadow), 0 0 20px rgba(255, 255, 255, 0.1) inset;
+  }
+  
+  .dark .vision-glass-hoverable:hover {
+    background-color: rgba(30, 41, 59, 0.45);
+    box-shadow: 0 20px 40px -10px var(--glass-shadow), 0 0 20px rgba(255, 255, 255, 0.05) inset;
+  }
+  
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(to right, #2563eb, #8b5cf6);
+  }
+  
+  .dark .text-gradient {
+    background-image: linear-gradient(to right, #60a5fa, #a78bfa);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.5);
+}
+
+@keyframes gradient-xy {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.vision-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(-45deg, #e0c3fc, #8ec5fc, #a18cd1, #fbc2eb);
+  background-size: 400% 400%;
+  animation: gradient-xy 6s ease-in-out infinite;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.dark .vision-bg {
+  background: linear-gradient(-45deg, #0f172a, #1e1b4b, #1e3a8a, #0f172a);
+  opacity: 1;
+}
