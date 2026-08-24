@@ -46,14 +46,34 @@ export default async function StudentDashboard() {
     // Concurrently fetch global progress (progress + scores + assignments + scoresData)
     const [pRes, sRes, aRes, fetchedScores] = await Promise.all([
       supabase.from('student_lesson_progress').select('lesson_id').eq('student_id', user.id),
-      supabase.from('student_scores').select('lesson_id').eq('student_id', user.id),
+      supabase.from('student_scores').select('lesson_id, score, total_score, exam_type, status').eq('student_id', user.id),
       supabase.from('student_assignments').select('lesson_id').eq('student_id', user.id),
       latestCourse ? getStudentScores(user.id, latestCourse.id.toString()) : Promise.resolve([])
     ]);
 
+    const failedPostTestIds = new Set<string>();
+    const passedScoresIds: string[] = [];
+
+    (sRes.data || []).forEach((s: any) => {
+      const lid = String(s.lesson_id);
+      const isPost = s.exam_type === 'post-test';
+      const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
+      if (isPost) {
+        if (pct >= 50 && s.status !== 'pending') {
+          passedScoresIds.push(lid);
+        } else {
+          failedPostTestIds.add(lid);
+        }
+      } else {
+        if (s.status !== 'pending') {
+          passedScoresIds.push(lid);
+        }
+      }
+    });
+
     const combinedSet = new Set([
-      ...(pRes.data || []).map((p: any) => String(p.lesson_id)),
-      ...(sRes.data || []).map((s: any) => String(s.lesson_id)),
+      ...(pRes.data || []).map((p: any) => String(p.lesson_id)).filter(id => !failedPostTestIds.has(id)),
+      ...passedScoresIds,
       ...(aRes.data || []).map((a: any) => String(a.lesson_id)),
     ].filter(Boolean));
 

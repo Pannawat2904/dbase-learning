@@ -2,7 +2,7 @@
 
 import { useState, use, useEffect, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, PlayCircle, CheckCircle2, MessageSquareText, Lock, FileText, ChevronDown, MonitorPlay, HelpCircle, ExternalLink, Upload, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, PlayCircle, CheckCircle2, MessageSquareText, Lock, FileText, ChevronDown, MonitorPlay, HelpCircle, ExternalLink, Upload, Sparkles, XCircle, AlertCircle } from "lucide-react";
 import { getCourseWithCurriculum, getStudentScores, getStudentProgress } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
 import QuizInterface from "@/components/student/QuizInterface";
@@ -16,6 +16,7 @@ interface Lesson {
   title: string;
   duration?: string;
   type: LessonType;
+  examType?: string;
   completed?: boolean;
   locked?: boolean;
   content?: any;
@@ -207,12 +208,74 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
   const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null;
   const nextLesson = currentLessonIndex !== -1 && currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null;
 
-  // Calculate Progress
+  // Helper to determine post-test passing status
+  const getLessonPostTestInfo = (lesson: any) => {
+    if (!lesson) return null;
+    const lid = lesson.id.toString();
+    const title = (lesson.title || '').toLowerCase();
+    const isPost = lesson.content?.examType === 'post-test' || lesson.examType === 'post-test' || title.includes('post') || title.includes('หลังเรียน');
+    if (!isPost) return null;
+
+    const scoreObj = studentScores.find((s: any) => s.lesson_id?.toString() === lid);
+    if (!scoreObj) {
+      return { isPostTest: true, attempted: false, passed: false, score: 0, total: 0, percentage: 0 };
+    }
+
+    const total = scoreObj.total_score || 0;
+    const score = scoreObj.score || 0;
+    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+    const passingThreshold = lesson.content?.passingScore ?? 50;
+    const passed = percentage >= passingThreshold;
+
+    return {
+      isPostTest: true,
+      attempted: true,
+      passed,
+      score,
+      total,
+      percentage,
+      passingThreshold,
+      status: scoreObj.status
+    };
+  };
+
+  // Calculate Progress: Failed post-test must NEVER be counted as completed!
   const totalLessons = allLessons.length;
-  const completedLessonIds = new Set([
-    ...completedLessons,
-    ...studentScores.filter(s => s.status !== 'pending').map(s => s.lesson_id.toString())
-  ]);
+  const completedLessonIds = new Set<string>();
+
+  allLessons.forEach((lesson) => {
+    const lid = lesson.id.toString();
+    const title = (lesson.title || '').toLowerCase();
+    const isPost = lesson.content?.examType === 'post-test' || lesson.examType === 'post-test' || title.includes('post') || title.includes('หลังเรียน');
+    const isPre = lesson.content?.examType === 'pre-test' || lesson.examType === 'pre-test' || title.includes('pre') || title.includes('ก่อนเรียน');
+
+    if (isPost) {
+      const postInfo = getLessonPostTestInfo(lesson);
+      if (postInfo && postInfo.attempted && postInfo.passed) {
+        completedLessonIds.add(lid);
+      }
+    } else if (isPre) {
+      if (studentScores.some((s: any) => s.lesson_id?.toString() === lid)) {
+        completedLessonIds.add(lid);
+      }
+    } else if (lesson.type === 'test' || lesson.type === 'quiz') {
+      const scoreObj = studentScores.find((s: any) => s.lesson_id?.toString() === lid);
+      if (scoreObj && scoreObj.status !== 'pending') {
+        const threshold = lesson.content?.passingScore;
+        if (threshold) {
+          const pct = scoreObj.total_score > 0 ? Math.round((scoreObj.score / scoreObj.total_score) * 100) : 0;
+          if (pct >= threshold) completedLessonIds.add(lid);
+        } else {
+          completedLessonIds.add(lid);
+        }
+      }
+    } else {
+      if (completedLessons.includes(lid)) {
+        completedLessonIds.add(lid);
+      }
+    }
+  });
+
   const validCompletedIds = Array.from(completedLessonIds).filter(id => allLessons.some(l => l.id.toString() === id));
   const progressPercent = totalLessons > 0 ? Math.min(100, Math.round((validCompletedIds.length / totalLessons) * 100)) : 0;
 
@@ -313,20 +376,34 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
               lesson={activeLesson} 
               courseId={course.id.toString()} 
               moduleId={activeModule.id.toString()}
-              existingScore={studentScores.find(s => s.lesson_id === activeLesson.id.toString())}
+              existingScore={studentScores.find(s => s.lesson_id?.toString() === activeLesson.id.toString())}
               onExamStart={() => setIsExamActive(true)}
               onExamEnd={() => setIsExamActive(false)}
-              onComplete={() => {
-                // Save to DB via client-side supabase so green status persists after reload
-                if (studentId && course) {
-                  saveProgress(studentId, course.id.toString(), activeLesson.id.toString());
-                }
-                setCompletedLessons(prev => {
-                  if (!prev.includes(activeLesson.id.toString())) {
-                    return [...prev, activeLesson.id.toString()];
-                  }
-                  return prev;
+              onScoreUpdated={(scoreObj) => {
+                setStudentScores(prev => {
+                  const filtered = prev.filter((s: any) => s.lesson_id?.toString() !== scoreObj.lesson_id?.toString());
+                  return [...filtered, scoreObj];
                 });
+                if (scoreObj.passed) {
+                  setCompletedLessons(prev => [...new Set([...prev, scoreObj.lesson_id?.toString()])]);
+                } else {
+                  setCompletedLessons(prev => prev.filter(id => id !== scoreObj.lesson_id?.toString()));
+                }
+              }}
+              onComplete={(isPassed) => {
+                const isPost = activeLesson.content?.examType === 'post-test' || activeLesson.examType === 'post-test' || (activeLesson.title || '').toLowerCase().includes('post') || (activeLesson.title || '').includes('หลังเรียน');
+                
+                if (!isPost || isPassed) {
+                  if (studentId && course) {
+                    saveProgress(studentId, course.id.toString(), activeLesson.id.toString());
+                  }
+                  setCompletedLessons(prev => {
+                    if (!prev.includes(activeLesson.id.toString())) {
+                      return [...prev, activeLesson.id.toString()];
+                    }
+                    return prev;
+                  });
+                }
                 if (activeLesson.id.toString() === preTestId) {
                   setHasCompletedPreTest(true);
                 }
@@ -363,10 +440,15 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
             <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">เนื้อหาหลักสูตร</h2>
             <div className="flex items-center justify-between text-sm text-slate-500 mb-2">
               <span>ความก้าวหน้า</span>
-              <span className="font-medium text-blue-600">{progressPercent}%</span>
+              <span className={`font-medium ${progressPercent >= 100 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                {progressPercent}% {progressPercent >= 100 ? '(เรียนจบแล้ว 🎓)' : '(ยังเรียนไม่จบ)'}
+              </span>
             </div>
             <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
+              <div 
+                className={`h-full rounded-full transition-all duration-1000 ease-out ${progressPercent >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                style={{ width: `${progressPercent}%` }}
+              ></div>
             </div>
           </div>
 
@@ -385,6 +467,11 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
                   <div className="p-2 space-y-1">
                     {(module.lessons || []).map((lesson) => {
                       const isLocked = (lesson.locked || (preTestId && !hasCompletedPreTest && lesson.id.toString() !== preTestId));
+                      const postInfo = getLessonPostTestInfo(lesson);
+                      const isFailedPostTest = postInfo?.isPostTest && postInfo.attempted && !postInfo.passed;
+                      const isPassedPostTest = postInfo?.isPostTest && postInfo.attempted && postInfo.passed;
+                      const isCompleted = completedLessonIds.has(lesson.id.toString());
+
                       return (
                       <button
                         key={lesson.id}
@@ -402,15 +489,19 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
                         className={`w-full flex items-start gap-3 p-2.5 rounded-xl transition-all text-left ${
                           activeLessonId === lesson.id 
                             ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50' 
-                            : completedLessonIds.has(lesson.id.toString())
-                              ? 'bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'
-                              : isLocked || isExamActive
-                                ? 'opacity-60 cursor-not-allowed border border-transparent' 
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-700/40 border border-transparent'
+                            : isFailedPostTest
+                              ? 'bg-red-50/80 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 hover:bg-red-100/80 text-red-700 dark:text-red-300'
+                              : isCompleted
+                                ? 'bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'
+                                : isLocked || isExamActive
+                                  ? 'opacity-60 cursor-not-allowed border border-transparent' 
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700/40 border border-transparent'
                         }`}
                       >
                         <div className="mt-0.5 flex-shrink-0">
-                          {completedLessonIds.has(lesson.id.toString()) ? (
+                          {isFailedPostTest ? (
+                            <XCircle className="w-4 h-4 text-red-500" />
+                          ) : isCompleted ? (
                             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                           ) : isLocked || (isExamActive && activeLessonId !== lesson.id) ? (
                             <Lock className="w-4 h-4 text-slate-400" />
@@ -424,24 +515,44 @@ export default function CoursePlayer({ params }: { params: Promise<{ id: string 
                             <HelpCircle className="w-4 h-4 text-orange-500" />
                           )}
                         </div>
-                        <div className="flex-1">
-                          <p className={`text-sm ${activeLessonId === lesson.id ? 'font-semibold text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'} line-clamp-2 leading-tight`}>
-                            {lesson.title}
-                          </p>
-                          <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                            {lesson.type === 'slide' ? <FileText className="w-3 h-3 text-slate-400" /> :
-                             lesson.type === 'video_worksheet' ? <PlayCircle className="w-3 h-3 text-slate-400" /> :
-                             lesson.type === 'assignment' ? <Upload className="w-3 h-3 text-slate-400" /> :
-                             <HelpCircle className="w-3 h-3 text-slate-400" />}
-                            <span>
-                              {lesson.duration} • {
-                                lesson.type === 'video_worksheet' ? 'วิดีโอ+ใบงาน' : 
-                                lesson.type === 'assignment' ? 'งานปฏิบัติ' :
-                                (lesson.type === 'test' || lesson.type === 'quiz') ? 'แบบทดสอบ' : 
-                                'สไลด์ทฤษฎี'
-                              }
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <p className={`text-sm ${
+                              activeLessonId === lesson.id 
+                                ? 'font-semibold text-blue-700 dark:text-blue-400' 
+                                : isFailedPostTest
+                                  ? 'font-medium text-red-700 dark:text-red-300'
+                                  : 'text-slate-700 dark:text-slate-300'
+                            } line-clamp-2 leading-tight`}>
+                              {lesson.title}
+                            </p>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between gap-1">
+                            <span className="flex items-center gap-1 truncate">
+                              {lesson.type === 'slide' ? <FileText className="w-3 h-3 text-slate-400" /> :
+                               lesson.type === 'video_worksheet' ? <PlayCircle className="w-3 h-3 text-slate-400" /> :
+                               lesson.type === 'assignment' ? <Upload className="w-3 h-3 text-slate-400" /> :
+                               <HelpCircle className="w-3 h-3 text-slate-400" />}
+                              <span>
+                                {lesson.duration} • {
+                                  lesson.type === 'video_worksheet' ? 'วิดีโอ+ใบงาน' : 
+                                  lesson.type === 'assignment' ? 'งานปฏิบัติ' :
+                                  (lesson.type === 'test' || lesson.type === 'quiz') ? 'แบบทดสอบ' : 
+                                  'สไลด์ทฤษฎี'
+                                }
+                              </span>
                             </span>
-                          </p>
+                            {isFailedPostTest && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded-full shrink-0">
+                                <XCircle className="w-2.5 h-2.5" /> ยังไม่ผ่าน ({postInfo.percentage}%)
+                              </span>
+                            )}
+                            {isPassedPostTest && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full shrink-0">
+                                <CheckCircle2 className="w-2.5 h-2.5" /> ผ่านแล้ว ({postInfo.percentage}%)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
                       );

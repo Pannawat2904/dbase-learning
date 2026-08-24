@@ -88,25 +88,36 @@ export default function RealtimeDashboard({
   const refreshProgress = useCallback(async () => {
     const supabase = createClient();
     // Fetch global progress (progress + scores + assignments)
-    const { data: pData } = await supabase
-      .from("student_lesson_progress")
-      .select("lesson_id")
-      .eq("student_id", userId);
+    const [pRes, sRes, aRes] = await Promise.all([
+      supabase.from("student_lesson_progress").select("lesson_id").eq("student_id", userId),
+      supabase.from("student_scores").select("lesson_id, score, total_score, exam_type, status").eq("student_id", userId),
+      supabase.from("student_assignments").select("lesson_id").eq("student_id", userId)
+    ]);
 
-    const { data: sData } = await supabase
-      .from("student_scores")
-      .select("lesson_id")
-      .eq("student_id", userId);
+    const failedPostTestIds = new Set<string>();
+    const passedScoresIds: string[] = [];
 
-    const { data: aData } = await supabase
-      .from("student_assignments")
-      .select("lesson_id")
-      .eq("student_id", userId);
+    (sRes.data || []).forEach((s: any) => {
+      const lid = String(s.lesson_id);
+      const isPost = s.exam_type === 'post-test';
+      const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
+      if (isPost) {
+        if (pct >= 50 && s.status !== 'pending') {
+          passedScoresIds.push(lid);
+        } else {
+          failedPostTestIds.add(lid);
+        }
+      } else {
+        if (s.status !== 'pending') {
+          passedScoresIds.push(lid);
+        }
+      }
+    });
 
     const combinedSet = new Set([
-      ...(pData || []).map(p => String(p.lesson_id)),
-      ...(sData || []).map(s => String(s.lesson_id)),
-      ...(aData || []).map(a => String(a.lesson_id)),
+      ...(pRes.data || []).map(p => String(p.lesson_id)).filter(id => !failedPostTestIds.has(id)),
+      ...passedScoresIds,
+      ...(aRes.data || []).map(a => String(a.lesson_id)),
     ].filter(Boolean));
 
     setCompletedIds(Array.from(combinedSet));

@@ -25,25 +25,36 @@ export default function CourseCatalog() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: progressData } = await supabase
-          .from('student_lesson_progress')
-          .select('lesson_id')
-          .eq('student_id', user.id);
+        const [pRes, sRes, aRes] = await Promise.all([
+          supabase.from('student_lesson_progress').select('lesson_id').eq('student_id', user.id),
+          supabase.from('student_scores').select('lesson_id, score, total_score, exam_type, status').eq('student_id', user.id),
+          supabase.from('student_assignments').select('lesson_id').eq('student_id', user.id)
+        ]);
 
-        const { data: scoresData } = await supabase
-          .from('student_scores')
-          .select('lesson_id')
-          .eq('student_id', user.id);
+        const failedPostTestIds = new Set<string>();
+        const passedScoresIds: string[] = [];
 
-        const { data: assignData } = await supabase
-          .from('student_assignments')
-          .select('lesson_id')
-          .eq('student_id', user.id);
-        
+        (sRes.data || []).forEach((s: any) => {
+          const lid = String(s.lesson_id);
+          const isPost = s.exam_type === 'post-test';
+          const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
+          if (isPost) {
+            if (pct >= 50 && s.status !== 'pending') {
+              passedScoresIds.push(lid);
+            } else {
+              failedPostTestIds.add(lid);
+            }
+          } else {
+            if (s.status !== 'pending') {
+              passedScoresIds.push(lid);
+            }
+          }
+        });
+
         const combined = new Set([
-          ...(progressData || []).map(p => String(p.lesson_id)),
-          ...(scoresData || []).map(s => String(s.lesson_id)),
-          ...(assignData || []).map(a => String(a.lesson_id))
+          ...(pRes.data || []).map((p: any) => String(p.lesson_id)).filter(id => !failedPostTestIds.has(id)),
+          ...passedScoresIds,
+          ...(aRes.data || []).map((a: any) => String(a.lesson_id))
         ].filter(Boolean));
 
         setCompletedLessonIds(Array.from(combined));

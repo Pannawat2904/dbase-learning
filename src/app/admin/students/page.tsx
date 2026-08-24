@@ -39,9 +39,30 @@ export default async function AdminStudentsPage() {
     const assignmentText = studentAssignmentsList.length > 0 ? `${totalAssignmentScore}` : "-";
     
     // Calculate progress based on unique lesson interactions (progress + scores + assignments)
+    // Exclude failed post-test from progress
+    const failedPostTestIds = new Set<string>();
+    const passedScoresIds: string[] = [];
+
+    studentScores.forEach((s: any) => {
+      const lid = String(s.lesson_id);
+      const isPost = s.exam_type === 'post-test';
+      const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
+      if (isPost) {
+        if (pct >= 50 && s.status !== 'pending') {
+          passedScoresIds.push(lid);
+        } else {
+          failedPostTestIds.add(lid);
+        }
+      } else {
+        if (s.status !== 'pending') {
+          passedScoresIds.push(lid);
+        }
+      }
+    });
+
     const studentCompletedLessonsSet = new Set([
-      ...allProgress.filter((p: any) => p.student_id === student.id).map((p: any) => String(p.lesson_id)),
-      ...studentScores.map((s: any) => String(s.lesson_id)),
+      ...allProgress.filter((p: any) => p.student_id === student.id).map((p: any) => String(p.lesson_id)).filter(id => !failedPostTestIds.has(id)),
+      ...passedScoresIds,
       ...allAssignments.filter((a: any) => a.student_id === student.id).map((a: any) => String(a.lesson_id))
     ].filter(Boolean)); // filter out null/undefined
     
@@ -59,6 +80,8 @@ export default async function AdminStudentsPage() {
       ...allAssignments.filter((a: any) => a.student_id === student.id).map((a: any) => new Date(a.created_at).getTime())
     ].filter(Boolean);
     
+    const isPostTestPassed = postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false;
+
     if (allActivityDates.length > 0) {
       const maxTime = Math.max(...allActivityDates);
       const maxDate = new Date(maxTime);
@@ -67,7 +90,7 @@ export default async function AdminStudentsPage() {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
       });
 
-      if (progress >= 100 || (postTestScore && (postTestScore.score / (postTestScore.total_score || 1)) >= 0.5)) {
+      if (progress >= 100 && (!postTestScore || isPostTestPassed)) {
         status = "Completed";
         statusLabel = "เรียนจบแล้ว";
         statusColor = "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800";

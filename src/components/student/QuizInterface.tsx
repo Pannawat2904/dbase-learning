@@ -20,14 +20,15 @@ interface QuizInterfaceProps {
   courseId: string;
   moduleId?: string;
   existingScore?: any;
-  onComplete?: () => void;
+  onComplete?: (isPassed?: boolean) => void;
+  onScoreUpdated?: (scoreObj: any) => void;
   onExamStart?: () => void;
   onExamEnd?: () => void;
 }
 
 const MAX_ATTEMPTS = 3;
 
-export default function QuizInterface({ lesson, courseId, moduleId, existingScore, onComplete, onExamStart, onExamEnd }: QuizInterfaceProps) {
+export default function QuizInterface({ lesson, courseId, moduleId, existingScore, onComplete, onScoreUpdated, onExamStart, onExamEnd }: QuizInterfaceProps) {
   const isFormalTest = lesson.type === 'test' || (lesson.title || '').includes('แบบทดสอบ');
   const [hasStarted, setHasStarted] = useState(!isFormalTest);
   const [isFinished, setIsFinished] = useState(!!existingScore);
@@ -209,22 +210,42 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
         { ...answers, attempt_number: nextAttempt, max_attempts: MAX_ATTEMPTS }, 
         status
       );
-      setExamStatus(status);
-      
-      // Auto-save progress to student_lesson_progress so completion is recorded immediately
+      const percentage = totalPoints > 0 ? Math.round((calculatedScore / totalPoints) * 100) : 0;
+      const isPassed = examType !== 'post-test' || percentage >= passingScore;
+
+      // Auto-save progress to student_lesson_progress ONLY if passed (or not a post-test)
       try {
         const supabase = createClient();
-        await supabase.from('student_lesson_progress').upsert({
-          student_id: studentId,
-          course_id: courseId,
-          lesson_id: lesson.id.toString()
-        }, { onConflict: 'student_id,lesson_id' });
+        if (isPassed) {
+          await supabase.from('student_lesson_progress').upsert({
+            student_id: studentId,
+            course_id: courseId,
+            lesson_id: lesson.id.toString()
+          }, { onConflict: 'student_id,lesson_id' });
+        } else {
+          // If failed post-test, remove from student_lesson_progress so course is NOT completed
+          await supabase.from('student_lesson_progress').delete()
+            .eq('student_id', studentId)
+            .eq('lesson_id', lesson.id.toString());
+        }
       } catch (err) {
-        console.warn("Error saving lesson progress on quiz submit:", err);
+        console.warn("Error updating lesson progress on quiz submit:", err);
+      }
+
+      // Notify parent component about the updated score immediately
+      if (onScoreUpdated) {
+        onScoreUpdated({
+          lesson_id: lesson.id.toString(),
+          score: calculatedScore,
+          total_score: totalPoints,
+          exam_type: examType,
+          status,
+          percentage,
+          passed: isPassed
+        });
       }
 
       // Auto issue certificate if post-test passed
-      const percentage = Math.round((calculatedScore / totalPoints) * 100) || 0;
       if (examType === 'post-test' && percentage >= passingScore) {
         try {
           await issueCertificate(studentId, courseId, moduleId);
@@ -445,7 +466,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
           {/* Return / Proceed Button */}
           <button 
-            onClick={onComplete}
+            onClick={() => onComplete?.(isPostTest ? ((score / totalPoints) * 100 >= passingScore) : true)}
             className={`font-medium px-8 py-3.5 rounded-2xl transition-all ${
               canRetake 
                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200' 
