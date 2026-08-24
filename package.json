@@ -28,7 +28,8 @@
     "react-player": "^3.4.0",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.8"
+    "sonner": "^2.0.8",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

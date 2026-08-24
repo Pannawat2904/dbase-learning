@@ -24,6 +24,7 @@ export default function LessonEditor() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [timeLimit, setTimeLimit] = useState<number | string>(0);
   const [passingScore, setPassingScore] = useState<number | string>(50);
+  const [examType, setExamType] = useState<string>("quiz");
   
   // Smart Paste states
   const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
@@ -51,6 +52,19 @@ export default function LessonEditor() {
           setQuestions(c.questions || []);
           setTimeLimit(c.timeLimit !== undefined ? c.timeLimit : 0);
           setPassingScore(c.passingScore !== undefined ? c.passingScore : 50);
+
+          if (c.examType) {
+            setExamType(c.examType);
+          } else {
+            const title = (data.title || '').toLowerCase();
+            if (title.includes('pre') || title.includes('ก่อนเรียน')) {
+              setExamType('pre-test');
+            } else if (title.includes('post') || title.includes('หลังเรียน')) {
+              setExamType('post-test');
+            } else {
+              setExamType('quiz');
+            }
+          }
         }
       }
       setLoading(false);
@@ -74,7 +88,7 @@ export default function LessonEditor() {
       youtubeUrl,
       worksheetUrl,
       body: contentBody,
-      ...((lesson.type === 'quiz' || lesson.type === 'test') ? { questions: cleanQuestions, timeLimit: cleanTimeLimit, passingScore: cleanPassingScore } : {})
+      ...((lesson.type === 'quiz' || lesson.type === 'test') ? { questions: cleanQuestions, timeLimit: cleanTimeLimit, passingScore: cleanPassingScore, examType } : {})
     };
 
     const successOrError = await updateLesson(lesson.id, { content: newContent });
@@ -366,11 +380,31 @@ export default function LessonEditor() {
 
         {(lesson.type === 'quiz' || lesson.type === 'test') && (
           <div className="space-y-8">
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* 1. Exam Type Selector */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-4">
+                  <FileText className="w-5 h-5 text-indigo-500" />
+                  <h3 className="font-bold text-slate-800 dark:text-white">ประเภทแบบทดสอบ</h3>
+                </div>
+                <select
+                  value={examType}
+                  onChange={(e) => setExamType(e.target.value)}
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
+                >
+                  <option value="pre-test">📝 แบบทดสอบก่อนเรียน (Pre-test)</option>
+                  <option value="post-test">🎯 แบบทดสอบหลังเรียน (Post-test)</option>
+                  <option value="quiz">💡 แบบทดสอบย่อย / ท้ายบท (Quiz)</option>
+                </select>
+                <p className="text-xs text-slate-500 mt-2">กำหนดสำหรับจัดกลุ่มงานวิจัย</p>
+              </div>
+
+              {/* 2. Time Limit */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-4">
                   <Clock className="w-5 h-5 text-blue-500" />
-                  <h3 className="font-bold text-slate-800 dark:text-white">เวลาในการทำแบบทดสอบ (นาที)</h3>
+                  <h3 className="font-bold text-slate-800 dark:text-white">เวลาในการทำ (นาที)</h3>
                 </div>
                 <input 
                   type="number" 
@@ -384,11 +418,13 @@ export default function LessonEditor() {
                     if (timeLimit === '') setTimeLimit(0);
                   }}
                   placeholder="0 = ไม่จำกัดเวลา"
-                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <p className="text-xs text-slate-500 mt-2">ใส่ 0 หากไม่ต้องการจำกัดเวลา</p>
               </div>
-              <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+
+              {/* 3. Passing Score */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-4">
                   <Target className="w-5 h-5 text-emerald-500" />
                   <h3 className="font-bold text-slate-800 dark:text-white">เกณฑ์การสอบผ่าน (%)</h3>
@@ -406,10 +442,11 @@ export default function LessonEditor() {
                     if (passingScore === '' || Number(passingScore) < 1) setPassingScore(50);
                   }}
                   placeholder="50"
-                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                 />
                 <p className="text-xs text-slate-500 mt-2">คะแนนรวมคิดเป็นร้อยละ (เช่น 50%)</p>
               </div>
+
             </div>
 
             <hr className="border-slate-200 dark:border-slate-800" />

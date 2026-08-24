@@ -180,11 +180,18 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
     setAttemptsCount(nextAttempt);
 
     if (studentId) {
-      // Determine if it's pre-test or post-test based on lesson title (simple heuristic)
-      let examType = 'quiz';
-      const title = lesson.title.toLowerCase();
-      if (title.includes('pre') || title.includes('ก่อนเรียน')) examType = 'pre-test';
-      if (title.includes('post') || title.includes('หลังเรียน')) examType = 'post-test';
+      // Determine explicit examType from lesson content or metadata with fallback to title heuristic
+      let examType = lesson.content?.examType || lesson.examType;
+      if (!examType || !['pre-test', 'post-test', 'quiz'].includes(examType)) {
+        const title = (lesson.title || '').toLowerCase();
+        if (title.includes('pre') || title.includes('ก่อนเรียน')) {
+          examType = 'pre-test';
+        } else if (title.includes('post') || title.includes('หลังเรียน')) {
+          examType = 'post-test';
+        } else {
+          examType = 'quiz';
+        }
+      }
 
       // Check if there are any essay questions
       const hasEssay = shuffledQuestions.some(q => q.type === 'essay');
@@ -302,8 +309,9 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
     const percentage = Math.round((score / totalPoints) * 100) || 0;
     const passed = percentage >= passingScore;
     const title = (lesson.title || '').toLowerCase();
-    const isPreTest = title.includes('pre') || title.includes('ก่อนเรียน');
-    const isPostTest = !isPreTest && (lesson.type === 'test' || title.includes('post') || title.includes('หลังเรียน') || title.includes('ท้ายบท'));
+    const explicitType = lesson.content?.examType || lesson.examType;
+    const isPreTest = explicitType === 'pre-test' || (!explicitType && (title.includes('pre') || title.includes('ก่อนเรียน')));
+    const isPostTest = explicitType === 'post-test' || (!explicitType && !isPreTest && (lesson.type === 'test' || title.includes('post') || title.includes('หลังเรียน') || title.includes('ท้ายบท')));
     const attemptsUsed = Math.max(1, attemptsCount);
     const attemptsLeft = Math.max(0, MAX_ATTEMPTS - attemptsUsed);
     const canRetake = !passed && isPostTest && attemptsLeft > 0;

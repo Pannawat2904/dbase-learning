@@ -41,10 +41,11 @@ export default function AtRiskStudents() {
           .select('student_id, created_at')
           .order('created_at', { ascending: false });
 
-        // Fetch scores to determine academic risk
+        // Fetch scores to determine academic risk (filter out survey scores)
         const { data: scores } = await supabase
           .from('student_scores')
-          .select('student_id, score, total_score, created_at');
+          .select('student_id, score, total_score, created_at, exam_type')
+          .in('exam_type', ['quiz', 'pre-test', 'post-test']);
 
         const now = new Date();
         const riskList: AtRiskStudent[] = [];
