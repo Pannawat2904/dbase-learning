@@ -22,8 +22,8 @@ export default function LessonEditor() {
   
   // Quiz states
   const [questions, setQuestions] = useState<any[]>([]);
-  const [timeLimit, setTimeLimit] = useState<number>(0);
-  const [passingScore, setPassingScore] = useState<number>(50);
+  const [timeLimit, setTimeLimit] = useState<number | string>(0);
+  const [passingScore, setPassingScore] = useState<number | string>(50);
   
   // Smart Paste states
   const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
@@ -49,8 +49,8 @@ export default function LessonEditor() {
           setWorksheetUrl(c.worksheetUrl || "");
           setContentBody(c.body || "");
           setQuestions(c.questions || []);
-          setTimeLimit(c.timeLimit || 0);
-          setPassingScore(c.passingScore || 50);
+          setTimeLimit(c.timeLimit !== undefined ? c.timeLimit : 0);
+          setPassingScore(c.passingScore !== undefined ? c.passingScore : 50);
         }
       }
       setLoading(false);
@@ -62,12 +62,19 @@ export default function LessonEditor() {
     if (isSaving || !lesson) return;
     setIsSaving(true);
 
+    const cleanPassingScore = passingScore === '' ? 50 : Math.max(1, Math.min(100, Number(passingScore) || 50));
+    const cleanTimeLimit = timeLimit === '' ? 0 : Math.max(0, Number(timeLimit) || 0);
+    const cleanQuestions = questions.map(q => ({
+      ...q,
+      points: q.points === '' || q.points === undefined ? 1 : Math.max(1, Number(q.points) || 1)
+    }));
+
     const newContent = {
       pdfUrl,
       youtubeUrl,
       worksheetUrl,
       body: contentBody,
-      ...((lesson.type === 'quiz' || lesson.type === 'test') ? { questions, timeLimit, passingScore } : {})
+      ...((lesson.type === 'quiz' || lesson.type === 'test') ? { questions: cleanQuestions, timeLimit: cleanTimeLimit, passingScore: cleanPassingScore } : {})
     };
 
     const successOrError = await updateLesson(lesson.id, { content: newContent });
@@ -369,7 +376,13 @@ export default function LessonEditor() {
                   type="number" 
                   min="0"
                   value={timeLimit}
-                  onChange={(e) => setTimeLimit(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTimeLimit(val === '' ? '' : parseInt(val, 10));
+                  }}
+                  onBlur={() => {
+                    if (timeLimit === '') setTimeLimit(0);
+                  }}
                   placeholder="0 = ไม่จำกัดเวลา"
                   className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -385,7 +398,14 @@ export default function LessonEditor() {
                   min="1"
                   max="100"
                   value={passingScore}
-                  onChange={(e) => setPassingScore(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPassingScore(val === '' ? '' : parseInt(val, 10));
+                  }}
+                  onBlur={() => {
+                    if (passingScore === '' || Number(passingScore) < 1) setPassingScore(50);
+                  }}
+                  placeholder="50"
                   className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <p className="text-xs text-slate-500 mt-2">คะแนนรวมคิดเป็นร้อยละ (เช่น 50%)</p>
@@ -464,8 +484,14 @@ export default function LessonEditor() {
                             <input 
                               type="number" 
                               min="0"
-                              value={q.points}
-                              onChange={(e) => updateQuestion(qIndex, 'points', Number(e.target.value))}
+                              value={q.points === undefined || q.points === null ? '' : q.points}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                updateQuestion(qIndex, 'points', val === '' ? '' : parseInt(val, 10));
+                              }}
+                              onBlur={() => {
+                                if (q.points === '' || Number(q.points) < 1) updateQuestion(qIndex, 'points', 1);
+                              }}
                               className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
