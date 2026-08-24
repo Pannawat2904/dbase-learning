@@ -188,7 +188,7 @@ export default async function CertificateViewPage({ params }: { params: Promise<
                 {/* Left Signature */}
                 <div className="text-center w-40 md:w-48">
                   <div className="border-b-2 border-blue-900 pb-1 mb-1">
-                    <p className="font-serif italic text-xl md:text-2xl text-slate-800 font-bold">{instructor}</p>
+                    <p className="font-serif italic text-2xl md:text-3xl text-slate-800 font-bold tracking-wide">ปาณวัฐ</p>
                   </div>
                   <p className="text-xs md:text-sm text-blue-900 font-semibold uppercase tracking-wider">ครูผู้สอน</p>
                 </div>
@@ -211,7 +211,7 @@ export default async function CertificateViewPage({ params }: { params: Promise<
                 {/* Right Signature */}
                 <div className="text-center w-40 md:w-48">
                   <div className="border-b-2 border-blue-900 pb-1 mb-1">
-                    <p className="font-serif italic text-xl md:text-2xl text-slate-800 font-bold">เมธาสิทธิ์</p>
+                    <p className="font-serif italic text-2xl md:text-3xl text-slate-800 font-bold tracking-wide">เมธาสิทธิ์</p>
                   </div>
                   <p className="text-xs md:text-sm text-blue-900 font-semibold uppercase tracking-wider">ครูประจำวิชา</p>
                 </div>
