@@ -1,4 +1,4 @@
-import { Search, Filter, CheckCircle2, XCircle, Users } from "lucide-react";
+import { Search, Filter, CheckCircle2, XCircle, Users, User } from "lucide-react";
 import { getStudents, getAllStudentScores, getAllStudentProgress, getCourses, getAllStudentAssignments } from "@/utils/supabase/queries";
 import StudentActionsMenu from "@/components/admin/StudentActionsMenu";
 import AutoRefresh from "@/components/admin/AutoRefresh";
@@ -16,6 +16,8 @@ export default async function AdminStudentsPage() {
   
   // Calculate total lessons across all courses
   const totalLessons = courses.reduce((sum, c) => sum + (c.totalLessons || 0), 0) || 1;
+  const nowTime = Date.now();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
   
   // Format real students
   const students = dbStudents?.map((student: any) => {
@@ -42,8 +44,12 @@ export default async function AdminStudentsPage() {
     
     const progress = Math.round((studentCompletedLessonsSet.size / totalLessons) * 100);
     
-    // Calculate last active
+    // Calculate last active & real-time status
     let lastActive = "ยังไม่เคยเข้าเรียน";
+    let status = "Not Started";
+    let statusLabel = "ยังไม่เริ่มเรียน";
+    let statusColor = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+
     const allActivityDates = [
       ...studentScores.map((s: any) => new Date(s.created_at).getTime()),
       ...allProgress.filter((p: any) => p.student_id === student.id).map((p: any) => new Date(p.created_at).getTime()),
@@ -51,11 +57,22 @@ export default async function AdminStudentsPage() {
     ].filter(Boolean);
     
     if (allActivityDates.length > 0) {
-      const maxDate = new Date(Math.max(...allActivityDates));
+      const maxTime = Math.max(...allActivityDates);
+      const maxDate = new Date(maxTime);
       lastActive = maxDate.toLocaleDateString('th-TH', { 
         timeZone: 'Asia/Bangkok',
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
       });
+
+      if (nowTime - maxTime < sevenDaysMs) {
+        status = "Active";
+        statusLabel = "กำลังเรียน";
+        statusColor = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      } else {
+        status = "Inactive";
+        statusLabel = "ขาดการติดต่อ";
+        statusColor = "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+      }
     }
     
     return {
@@ -64,7 +81,9 @@ export default async function AdminStudentsPage() {
       email: student.email,
       progress: Math.min(100, progress),
       lastActive,
-      status: "Active",
+      status,
+      statusLabel,
+      statusColor,
       preTest: preTestScore ? `${preTestScore.score}/${preTestScore.total_score}` : "-",
       preTestId: preTestScore?.lesson_id,
       postTest: postTestScore ? `${postTestScore.score}/${postTestScore.total_score}` : "-",
@@ -72,17 +91,22 @@ export default async function AdminStudentsPage() {
       postTestPassed: postTestScore ? (postTestScore.score / postTestScore.total_score >= 0.6) : false,
       quiz: quizText,
       assignment: assignmentText,
-      avatar_url: student.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.full_name || 'U')}&background=random`
+      avatar_url: student.avatar_url || ""
     };
   }) || [];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <AutoRefresh interval={15000} />
+      <AutoRefresh interval={5000} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">จัดการนักเรียน</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">ติดตามความก้าวหน้าและผลคะแนนของผู้เรียน</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
+            จัดการนักเรียน
+            <span className="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+              {students.length} คน
+            </span>
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">ติดตามความก้าวหน้าและผลคะแนนของผู้เรียนแบบ Real-time</p>
         </div>
         <ExportExcelButton students={students} />
       </div>
@@ -99,24 +123,21 @@ export default async function AdminStudentsPage() {
             placeholder="ค้นหาชื่อ, รหัส หรืออีเมลนักเรียน..."
           />
         </div>
-        <button className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-          <Filter className="w-4 h-4" />
-          ตัวกรอง
-        </button>
       </div>
 
-      {/* Students Table */}
+      {/* Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                <th className="px-6 py-4">นักเรียน</th>
+                <th className="px-6 py-4">ข้อมูลนักเรียน</th>
                 <th className="px-6 py-4">ความก้าวหน้า</th>
-                <th className="px-6 py-4 text-center">แบบทดสอบก่อนเรียน</th>
-                <th className="px-6 py-4 text-center">แบบทดสอบหลังเรียน</th>
-                <th className="px-6 py-4 text-center">แบบฝึกหัด/อัตนัย</th>
-                <th className="px-6 py-4 text-center">งานปฏิบัติ</th>
+                <th className="px-6 py-4 text-center">Pre-Test</th>
+                <th className="px-6 py-4 text-center">Post-Test</th>
+                <th className="px-6 py-4 text-center">แบบทดสอบย่อย</th>
+                <th className="px-6 py-4 text-center">ใบงาน</th>
+                <th className="px-6 py-4">สถานะ</th>
                 <th className="px-6 py-4">เข้าเรียนล่าสุด</th>
                 <th className="px-6 py-4 text-right"></th>
               </tr>
@@ -126,8 +147,13 @@ export default async function AdminStudentsPage() {
                 <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                        <img src={student.avatar_url} alt={student.name} />
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                        {student.avatar_url ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={student.avatar_url} alt={student.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-5 h-5" />
+                        )}
                       </div>
                       <div>
                         <p className="font-semibold text-slate-800 dark:text-white">{student.name}</p>
@@ -165,6 +191,11 @@ export default async function AdminStudentsPage() {
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{student.assignment}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${student.statusColor}`}>
+                      {student.statusLabel}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-500">
                     {student.lastActive}

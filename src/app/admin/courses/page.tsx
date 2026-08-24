@@ -2,12 +2,18 @@ import Link from "next/link";
 import { MoreVertical, Edit, BookOpen, Users } from "lucide-react";
 import { getCourses } from "@/utils/supabase/queries";
 import CreateCourseButton from "@/components/admin/CreateCourseButton";
+import AutoRefresh from "@/components/admin/AutoRefresh";
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function AdminCoursesPage() {
   const courses = await getCourses();
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <AutoRefresh interval={5000} />
+      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white">จัดการบทเรียน (Lessons)</h1>
@@ -47,9 +53,9 @@ export default async function AdminCoursesPage() {
                     {course.code || '-'}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-                      <Users className="w-4 h-4 text-slate-400" />
-                      0 คน
+                    <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                      <Users className="w-4 h-4 text-blue-500" />
+                      <span>{course.studentCount || 0} คน</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
