@@ -51,10 +51,11 @@ export default function SatisfactionCharts({ analytics, dimensions }: Satisfacti
   }
 
   const isDark = theme === "dark";
-  const hasData = (analytics?.totalRespondents || 0) > 0;
+  const safeDimensions = Array.isArray(dimensions) ? dimensions : [];
+  const hasData = (analytics?.totalRespondents || 0) > 0 && safeDimensions.length > 0;
 
   // 1. Data for Dimension Comparison (Bar / Radar)
-  const dimensionData = dimensions.map((dim, index) => {
+  const dimensionData = safeDimensions.map((dim, index) => {
     const stat = analytics?.dimensionStats?.[dim.id] || { mean: 0, sd: 0, quality: '-' };
     // Short title for chart
     let shortName = dim.title.replace(/^\d+\.\s*/, '');

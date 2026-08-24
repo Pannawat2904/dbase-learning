@@ -32,6 +32,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       isOpen: config.isOpen,
+      title: config.title,
+      description: config.description,
+      scaleLevels: config.scaleLevels,
+      dimensions: config.dimensions,
       updatedAt: config.updatedAt,
       isSubmitted: submissionInfo.submitted,
       submission: submissionInfo.submission
@@ -59,7 +63,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { ratings, dimensionScores, suggestions, overallAverage } = body;
 
-    if (!ratings || !overallAverage) {
+    if (!ratings || overallAverage === undefined) {
       return NextResponse.json({ error: "ข้อมูลแบบประเมินไม่ครบถ้วน" }, { status: 400 });
     }
 
@@ -84,18 +88,20 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { isOpen } = body;
+    const { isOpen, title, description, dimensions } = body;
 
-    if (typeof isOpen !== "boolean") {
-      return NextResponse.json({ error: "Invalid isOpen state" }, { status: 400 });
-    }
+    const success = await updateSurveyConfig({
+      isOpen: typeof isOpen === "boolean" ? isOpen : undefined,
+      title: typeof title === "string" ? title : undefined,
+      description: typeof description === "string" ? description : undefined,
+      dimensions: Array.isArray(dimensions) ? dimensions : undefined
+    });
 
-    const success = await updateSurveyConfig(isOpen);
     if (!success) {
       return NextResponse.json({ error: "คุณไม่มีสิทธิ์ผู้ดูแลระบบ หรือเกิดข้อผิดพลาดในการบันทึก" }, { status: 403 });
     }
 
-    return NextResponse.json({ success: true, isOpen });
+    return NextResponse.json({ success: true, message: "บันทึกการตั้งค่าแบบประเมินสำเร็จ" });
   } catch (error: any) {
     console.error("API PATCH /api/survey error:", error);
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

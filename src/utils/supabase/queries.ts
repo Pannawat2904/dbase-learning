@@ -1029,7 +1029,36 @@ export async function getAllStudentAssignments() {
 // SATISFACTION SURVEY FUNCTIONS
 // ----------------------------------------------------
 
-export async function getSurveyConfig(): Promise<{ isOpen: boolean; updatedAt?: string }> {
+export interface SurveyDimensionItem {
+  id: string;
+  text: string;
+}
+
+export interface SurveyDimension {
+  id: string;
+  title: string;
+  description?: string;
+  items: SurveyDimensionItem[];
+}
+
+export interface SurveyConfigData {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  scaleLevels: Array<{ value: number; label: string }>;
+  dimensions: SurveyDimension[];
+  updatedAt?: string;
+}
+
+export async function getSurveyConfig(): Promise<SurveyConfigData> {
+  const defaultScaleLevels = [
+    { value: 5, label: "มากที่สุด" },
+    { value: 4, label: "มาก" },
+    { value: 3, label: "ปานกลาง" },
+    { value: 2, label: "น้อย" },
+    { value: 1, label: "น้อยที่สุด" }
+  ];
+
   try {
     const supabase = await createClient();
     const { data } = await supabase
@@ -1043,22 +1072,49 @@ export async function getSurveyConfig(): Promise<{ isOpen: boolean; updatedAt?: 
       const answers = (data[0].answers as any) || {};
       return {
         isOpen: Boolean(answers.is_open),
+        title: answers.title || "แบบประเมินความพึงพอใจต่อการใช้งานระบบเรียนรู้วิชาโปรแกรมฐานข้อมูลอัจฉริยะ (DBASE Learning AI)",
+        description: answers.description || "คำชี้แจง: โปรดเลือกคะแนนระดับความพึงพอใจที่ตรงกับความคิดเห็นของท่านมากที่สุด โดยแบ่งเป็น 5 ระดับ (5 = มากที่สุด, 4 = มาก, 3 = ปานกลาง, 2 = น้อย, 1 = น้อยที่สุด)",
+        scaleLevels: answers.scaleLevels || defaultScaleLevels,
+        dimensions: Array.isArray(answers.dimensions) ? answers.dimensions : [],
         updatedAt: data[0].created_at
       };
     }
-    return { isOpen: false };
+    return {
+      isOpen: false,
+      title: "แบบประเมินความพึงพอใจต่อการใช้งานระบบเรียนรู้วิชาโปรแกรมฐานข้อมูลอัจฉริยะ (DBASE Learning AI)",
+      description: "คำชี้แจง: โปรดเลือกคะแนนระดับความพึงพอใจที่ตรงกับความคิดเห็นของท่านมากที่สุด โดยแบ่งเป็น 5 ระดับ (5 = มากที่สุด, 4 = มาก, 3 = ปานกลาง, 2 = น้อย, 1 = น้อยที่สุด)",
+      scaleLevels: defaultScaleLevels,
+      dimensions: []
+    };
   } catch (error) {
     console.error('Error in getSurveyConfig:', error);
-    return { isOpen: false };
+    return {
+      isOpen: false,
+      title: "แบบประเมินความพึงพอใจ",
+      description: "",
+      scaleLevels: defaultScaleLevels,
+      dimensions: []
+    };
   }
 }
 
-export async function updateSurveyConfig(isOpen: boolean): Promise<boolean> {
+export async function updateSurveyConfig(updates: {
+  isOpen?: boolean;
+  title?: string;
+  description?: string;
+  dimensions?: SurveyDimension[];
+}): Promise<boolean> {
   try {
     await requireAdmin();
     const supabase = await createClient();
-    
-    // Insert new config state record
+    const currentConfig = await getSurveyConfig();
+
+    const isOpen = updates.isOpen !== undefined ? updates.isOpen : currentConfig.isOpen;
+    const title = updates.title !== undefined ? updates.title : currentConfig.title;
+    const description = updates.description !== undefined ? updates.description : currentConfig.description;
+    const dimensions = updates.dimensions !== undefined ? updates.dimensions : currentConfig.dimensions;
+
+    // Insert new config record
     const { error } = await supabase.from('student_scores').insert([
       {
         student_id: '00000000-0000-0000-0000-000000000000',
@@ -1070,6 +1126,10 @@ export async function updateSurveyConfig(isOpen: boolean): Promise<boolean> {
         status: isOpen ? 'open' : 'closed',
         answers: {
           is_open: isOpen,
+          title,
+          description,
+          scaleLevels: currentConfig.scaleLevels,
+          dimensions,
           updated_at: new Date().toISOString()
         }
       }
@@ -1183,6 +1243,10 @@ export async function getSurveyAnalytics() {
     if (respError || !responses || responses.length === 0) {
       return {
         isOpen: config.isOpen,
+        title: config.title,
+        description: config.description,
+        dimensions: config.dimensions,
+        scaleLevels: config.scaleLevels,
         totalStudents,
         totalRespondents: 0,
         responseRate: 0,
@@ -1304,6 +1368,10 @@ export async function getSurveyAnalytics() {
 
     return {
       isOpen: config.isOpen,
+      title: config.title,
+      description: config.description,
+      dimensions: config.dimensions,
+      scaleLevels: config.scaleLevels,
       totalStudents,
       totalRespondents,
       responseRate: totalStudents > 0 ? Math.round((totalRespondents / totalStudents) * 100) : 0,
@@ -1320,6 +1388,10 @@ export async function getSurveyAnalytics() {
     console.error('Error in getSurveyAnalytics:', error);
     return {
       isOpen: false,
+      title: "แบบประเมินความพึงพอใจ",
+      description: "",
+      dimensions: [],
+      scaleLevels: [],
       totalStudents: 0,
       totalRespondents: 0,
       responseRate: 0,

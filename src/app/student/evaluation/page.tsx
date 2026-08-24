@@ -22,16 +22,28 @@ export default function StudentEvaluationPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionData, setSubmissionData] = useState<any>(null);
+  const [surveyConfig, setSurveyConfig] = useState<any>({
+    title: "แบบประเมินความพึงพอใจต่อการใช้งานระบบเรียนรู้วิชาโปรแกรมฐานข้อมูลอัจฉริยะ (DBASE Learning AI)",
+    description: "คำชี้แจง: โปรดเลือกคะแนนระดับความพึงพอใจที่ตรงกับความคิดเห็นของท่านมากที่สุด โดยแบ่งเป็น 5 ระดับ (5 = มากที่สุด, 4 = มาก, 3 = ปานกลาง, 2 = น้อย, 1 = น้อยที่สุด)",
+    scaleLevels: [
+      { value: 5, label: "มากที่สุด" },
+      { value: 4, label: "มาก" },
+      { value: 3, label: "ปานกลาง" },
+      { value: 2, label: "น้อย" },
+      { value: 1, label: "น้อยที่สุด" }
+    ],
+    dimensions: []
+  });
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [suggestions, setSuggestions] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Calculate total items
-  const allItems = surveyData.dimensions.flatMap(d => d.items);
+  const dimensions = surveyConfig.dimensions || [];
+  const allItems = dimensions.flatMap((d: any) => d.items || []);
   const totalQuestions = allItems.length;
   const answeredCount = Object.keys(ratings).length;
-  const progressPercent = Math.round((answeredCount / totalQuestions) * 100);
+  const progressPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
 
   const fetchStatus = async () => {
     try {
@@ -42,6 +54,20 @@ export default function StudentEvaluationPage() {
       setIsOpen(Boolean(data.isOpen));
       setIsSubmitted(Boolean(data.isSubmitted));
       setSubmissionData(data.submission);
+      if (data.title || data.dimensions) {
+        setSurveyConfig({
+          title: data.title || "แบบประเมินความพึงพอใจ",
+          description: data.description || "",
+          scaleLevels: data.scaleLevels || [
+            { value: 5, label: "มากที่สุด" },
+            { value: 4, label: "มาก" },
+            { value: 3, label: "ปานกลาง" },
+            { value: 2, label: "น้อย" },
+            { value: 1, label: "น้อยที่สุด" }
+          ],
+          dimensions: data.dimensions || []
+        });
+      }
     } catch (err: any) {
       console.error(err);
       setErrorMsg("ไม่สามารถโหลดข้อมูลแบบประเมินได้");
@@ -67,7 +93,7 @@ export default function StudentEvaluationPage() {
     if (answeredCount < totalQuestions) {
       setErrorMsg(`กรุณาตอบแบบประเมินให้ครบทุกข้อ (ตอบแล้ว ${answeredCount}/${totalQuestions} ข้อ)`);
       // Scroll to first unanswered item
-      const firstUnanswered = allItems.find(item => !ratings[item.id]);
+      const firstUnanswered = allItems.find((item: any) => !ratings[item.id]);
       if (firstUnanswered) {
         document.getElementById(`item-${firstUnanswered.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -80,10 +106,12 @@ export default function StudentEvaluationPage() {
 
       // Calculate dimension averages
       const dimensionScores: Record<string, number> = {};
-      surveyData.dimensions.forEach(dim => {
-        const dimItemScores = dim.items.map(it => ratings[it.id] || 0);
-        const avg = dimItemScores.reduce((a, b) => a + b, 0) / dimItemScores.length;
-        dimensionScores[dim.id] = Number(avg.toFixed(2));
+      dimensions.forEach((dim: any) => {
+        const dimItemScores = (dim.items || []).map((it: any) => ratings[it.id] || 0);
+        if (dimItemScores.length > 0) {
+          const avg = dimItemScores.reduce((a: number, b: number) => a + b, 0) / dimItemScores.length;
+          dimensionScores[dim.id] = Number(avg.toFixed(2));
+        }
       });
 
       const allScores = Object.values(ratings);
@@ -178,7 +206,44 @@ export default function StudentEvaluationPage() {
     );
   }
 
-  // 2. COMPLETED STATE (นักเรียนส่งแบบประเมินแล้ว)
+  // 2. EMPTY STATE (เปิดแล้ว แต่ยังไม่มีข้อคำถาม)
+  if (isOpen && !isSubmitted && dimensions.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto py-12 px-4 animate-in fade-in zoom-in duration-500">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-12 text-center shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
+          <div className="w-20 h-20 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner border border-blue-200 dark:border-blue-800/40">
+            <HelpCircle className="w-10 h-10" />
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white mb-3">
+            ยังไม่มีรายการประเมินในระบบ
+          </h1>
+
+          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed max-w-lg mx-auto mb-8">
+            คุณครูผู้สอนกำลังจัดเตรียมส่วนและข้อคำถามการประเมินความพึงพอใจ กรุณากลับมาใหม่อีกครั้ง
+          </p>
+
+          <div className="flex justify-center gap-3">
+            <Link
+              href="/student/dashboard"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-2xl shadow-md transition-all"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              กลับสู่หน้าหลัก
+            </Link>
+            <button
+              onClick={fetchStatus}
+              className="px-6 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-2xl transition-colors"
+            >
+              รีเฟรช
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. COMPLETED STATE (นักเรียนส่งแบบประเมินแล้ว)
   if (isSubmitted) {
     const score = submissionData?.score || 5;
     return (
@@ -223,7 +288,7 @@ export default function StudentEvaluationPage() {
     );
   }
 
-  // 3. OPEN SURVEY FORM (เปิดให้ทำแบบประเมิน)
+  // 4. OPEN SURVEY FORM (เปิดให้ทำแบบประเมิน)
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6 pb-24 animate-in fade-in duration-500">
       {/* Header Banner */}
@@ -234,15 +299,15 @@ export default function StudentEvaluationPage() {
             แบบประเมินความพึงพอใจ
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-            {surveyData.title}
+            {surveyConfig.title}
           </h1>
           <p className="text-blue-100 text-sm sm:text-base leading-relaxed max-w-2xl">
-            {surveyData.description}
+            {surveyConfig.description}
           </p>
 
           {/* Rating Scale Legend */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-6 pt-6 border-t border-white/20 text-xs">
-            {surveyData.scaleLevels.map((lvl) => (
+            {surveyConfig.scaleLevels.map((lvl: any) => (
               <div key={lvl.value} className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center border border-white/10">
                 <span className="font-bold text-base block text-amber-300">{lvl.value} คะแนน</span>
                 <span className="text-white/90">{lvl.label}</span>
@@ -277,7 +342,7 @@ export default function StudentEvaluationPage() {
 
       {/* Form Questions by Dimension */}
       <form onSubmit={handleSubmit} className="space-y-8">
-        {surveyData.dimensions.map((dim, dimIdx) => (
+        {dimensions.map((dim: any, dimIdx: number) => (
           <div 
             key={dim.id}
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6"
@@ -290,14 +355,16 @@ export default function StudentEvaluationPage() {
                 </span>
                 {dim.title}
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 pl-9">
-                {dim.description}
-              </p>
+              {dim.description && (
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 pl-9">
+                  {dim.description}
+                </p>
+              )}
             </div>
 
             {/* Questions List */}
             <div className="space-y-6 divide-y divide-slate-100 dark:divide-slate-800/60">
-              {dim.items.map((item, itemIdx) => {
+              {(dim.items || []).map((item: any, itemIdx: number) => {
                 const currentRating = ratings[item.id];
                 return (
                   <div 
@@ -313,7 +380,7 @@ export default function StudentEvaluationPage() {
 
                     {/* 5-Level Rating Buttons */}
                     <div className="grid grid-cols-5 gap-2 sm:gap-3 max-w-xl">
-                      {surveyData.scaleLevels.map((lvl) => {
+                      {surveyConfig.scaleLevels.map((lvl: any) => {
                         const isSelected = currentRating === lvl.value;
                         return (
                           <button
