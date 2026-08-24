@@ -93,7 +93,7 @@ export default function LessonEditor() {
     if (isSaving || !lesson) return;
     setIsSaving(true);
 
-    const cleanPassingScore = passingScore === '' ? 50 : Math.max(1, Math.min(100, Number(passingScore) || 50));
+    const cleanPassingScore = passingScore === '' || isNaN(Number(passingScore)) ? 50 : Math.max(0, Math.min(100, Number(passingScore)));
     const cleanTimeLimit = timeLimit === '' ? 0 : Math.max(0, Number(timeLimit) || 0);
     const cleanMaxScore = assignmentMaxScore === '' ? 10 : Math.max(1, Number(assignmentMaxScore) || 10);
     const cleanQuestions = questions.map(q => ({
@@ -663,28 +663,30 @@ export default function LessonEditor() {
                 <p className="text-xs text-slate-500 mt-2">ใส่ 0 หากไม่ต้องการจำกัดเวลา</p>
               </div>
 
-              {/* 3. Passing Score */}
+              {/* 3. Passing Score Dropdown Selector */}
               <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-4">
                   <Target className="w-5 h-5 text-emerald-500" />
                   <h3 className="font-bold text-slate-800 dark:text-white">เกณฑ์การสอบผ่าน (%)</h3>
                 </div>
-                <input 
-                  type="number" 
-                  min="1"
-                  max="100"
-                  value={passingScore}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPassingScore(val === '' ? '' : parseInt(val, 10));
-                  }}
-                  onBlur={() => {
-                    if (passingScore === '' || Number(passingScore) < 1) setPassingScore(50);
-                  }}
-                  placeholder="50"
-                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                />
-                <p className="text-xs text-slate-500 mt-2">คะแนนรวมคิดเป็นร้อยละ (เช่น 50%)</p>
+                <select
+                  value={Number(passingScore)}
+                  onChange={(e) => setPassingScore(Number(e.target.value))}
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-800 dark:text-white cursor-pointer"
+                >
+                  {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((val) => (
+                    <option key={val} value={val}>
+                      {val === 0 
+                        ? "0% (ไม่จำกัดเกณฑ์ / สำหรับก่อนเรียน)" 
+                        : val === 50 
+                        ? "50% (เกณฑ์มาตรฐานทั่วไป)" 
+                        : val === 80 
+                        ? "80% (เกณฑ์ระดับดีเยี่ยม)" 
+                        : `${val}%`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">เลือกเกณฑ์ร้อยละที่ต้องได้เพื่อสอบผ่าน (0 = ผ่านทุกคน)</p>
               </div>
 
             </div>
