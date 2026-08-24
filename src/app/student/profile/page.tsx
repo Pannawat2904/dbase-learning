@@ -127,33 +127,41 @@ export default async function StudentProfile() {
                 year: 'numeric', month: 'long', day: 'numeric'
               });
               
+              const chibiThumb = index % 2 === 0 ? '/images/certificates/chibi_cert_1.jpg' : '/images/certificates/chibi_cert_2.jpg';
               return (
-                <div key={cert.id} className="vision-glass-panel shimmer p-1 relative overflow-hidden group">
+                <div key={cert.id} className="vision-glass-panel shimmer p-1 relative overflow-hidden group rounded-3xl">
                   <div className={`absolute inset-0 bg-gradient-to-br ${isFirst ? 'from-amber-200/20 via-yellow-100/10' : 'from-blue-200/20 via-sky-100/10'} to-transparent z-0`}></div>
-                  <div className="relative z-10 bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 rounded-2xl p-6 h-full flex flex-col md:flex-row items-center md:items-start gap-6">
+                  <div className="relative z-10 bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 rounded-2xl p-5 h-full flex flex-col md:flex-row items-center md:items-start gap-5">
                     
-                    <div className={`w-24 h-24 flex-shrink-0 rounded-full bg-gradient-to-br ${isFirst ? 'from-amber-400 to-orange-500 shadow-amber-500/20' : 'from-blue-400 to-indigo-500 shadow-blue-500/20'} p-1 shadow-lg group-hover:scale-105 transition-transform duration-500`}>
-                      <div className="w-full h-full rounded-full border-2 border-white/50 border-dashed flex items-center justify-center">
-                        <Award className="w-10 h-10 text-white" />
+                    {/* Chibi Cover Avatar */}
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 rounded-2xl overflow-hidden border-2 border-amber-300 dark:border-amber-700/60 shadow-md shadow-amber-500/10 group-hover:scale-105 transition-transform duration-500 relative">
+                      <img 
+                        src={chibiThumb} 
+                        alt="Certificate Chibi"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-1.5 right-1.5 bg-amber-500 text-white rounded-full p-1 shadow-sm">
+                        <Award className="w-3.5 h-3.5" />
                       </div>
                     </div>
                     
                     <div className="flex-1 text-center md:text-left flex flex-col h-full">
                       <p className={`text-xs font-bold ${isFirst ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'} uppercase tracking-widest mb-1`}>
-                        Certificate of Completion
+                        Certificate of Achievement
                       </p>
-                      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
+                      <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white mb-1.5">
                         {cert.module?.title || cert.course?.title || "หลักสูตรสำเร็จ"}
                       </h3>
-                      <p className="text-sm text-slate-500 mb-4 flex-1">
+                      <p className="text-xs sm:text-sm text-slate-500 mb-4 flex-1">
                         มอบให้เพื่อแสดงว่าได้ผ่านการทดสอบและสำเร็จหลักสูตรเมื่อวันที่ {date}
                       </p>
-                      <Link href={`/student/certificates/${cert.id}`} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors w-fit mx-auto md:mx-0 ${
+                      <Link href={`/student/certificates/${cert.id}`} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all w-fit mx-auto md:mx-0 shadow-sm ${
                         isFirst 
-                          ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/60' 
-                          : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60'
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/20' 
+                          : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/20'
                       }`}>
-                        ดูใบประกาศนียบัตร
+                        <span>ดูใบประกาศนียบัตร</span>
+                        <Award className="w-4 h-4" />
                       </Link>
                     </div>
                   </div>
