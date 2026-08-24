@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, X, Send, Bot, RotateCcw, Copy, Check, Terminal, HelpCircle, ChevronRight, MessageSquareQuote } from "lucide-react";
+import { Sparkles, X, Send, Bot, RotateCcw, Copy, Check, Terminal } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -11,13 +11,6 @@ interface Message {
   content: string;
   timestamp?: string;
 }
-
-const QUICK_PROMPTS = [
-  "💡 วิชานี้เรียนเกี่ยวกับอะไรบ้าง?",
-  "⚡ คำสั่ง SQL พื้นฐาน (SELECT, INSERT, UPDATE)",
-  "🔑 Primary Key กับ Foreign Key ต่างกันอย่างไร?",
-  "📝 ทำอย่างไรให้สอบผ่านและได้เกียรติบัตร?",
-];
 
 const TypewriterMarkdown = ({ content }: { content: string }) => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -88,7 +81,7 @@ export default function ChatbotWidget() {
     { 
       id: "init", 
       role: "model", 
-      content: "สวัสดีครับ! ผมคือ **AI Assistant ผู้ช่วยสอนวิชาโปรแกรมฐานข้อมูล** (By KruBall) ยินดีตอบข้อสงสัย แนะนำคำสั่ง SQL และเทคนิคการเรียนให้ครับ ถามมาได้เลยครับ! 👨‍🏫✨",
+      content: "สวัสดีครับ! ผมชื่อ **น้องบอท** (By KruBall) ผู้ช่วยสอนวิชาโปรแกรมฐานข้อมูล ยินดีตอบข้อสงสัย แนะนำคำสั่ง SQL และเทคนิคการเรียนให้ครับ มีอะไรให้ช่วยสอบถามได้เลยครับ! 🤖✨",
       timestamp: "ตอนนี้"
     }
   ]);
@@ -174,7 +167,7 @@ export default function ChatbotWidget() {
       { 
         id: "init", 
         role: "model", 
-        content: "สวัสดีครับ! ผมคือ **AI Assistant ผู้ช่วยสอนวิชาโปรแกรมฐานข้อมูล** (By KruBall) ยินดีตอบข้อสงสัย แนะนำคำสั่ง SQL และเทคนิคการเรียนให้ครับ ถามมาได้เลยครับ! 👨‍🏫✨",
+        content: "สวัสดีครับ! ผมชื่อ **น้องบอท** (By KruBall) ผู้ช่วยสอนวิชาโปรแกรมฐานข้อมูล ยินดีตอบข้อสงสัย แนะนำคำสั่ง SQL และเทคนิคการเรียนให้ครับ มีอะไรให้ช่วยสอบถามได้เลยครับ! 🤖✨",
         timestamp: "ตอนนี้"
       }
     ]);
@@ -185,7 +178,7 @@ export default function ChatbotWidget() {
       {/* Floating Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="เปิดหน้าต่างพูดคุยกับ AI Assistant (By KruBall)"
+        aria-label="เปิดหน้าต่างพูดคุยกับ น้องบอท (By KruBall)"
         className="fixed bottom-28 md:bottom-8 right-5 md:right-8 z-50 group flex items-center gap-3 print:hidden transition-all duration-300 cursor-pointer"
       >
         {/* Tooltip on Hover */}
@@ -226,7 +219,7 @@ export default function ChatbotWidget() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-base tracking-wide text-white">AI Assistant</h3>
+                  <h3 className="font-extrabold text-base tracking-wide text-white">น้องบอท</h3>
                   <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-blue-50 border border-white/25">
                     <Sparkles className="w-2.5 h-2.5 text-amber-300" /> By KruBall
                   </span>
@@ -251,7 +244,7 @@ export default function ChatbotWidget() {
               <button 
                 onClick={() => setIsOpen(false)} 
                 title="ปิดหน้าต่างแชท"
-                aria-label="ปิดหน้าต่าง AI Assistant"
+                aria-label="ปิดหน้าต่าง น้องบอท"
                 className="p-2 hover:bg-white/20 rounded-xl transition-colors text-blue-100 hover:text-white cursor-pointer active:scale-95"
               >
                 <X className="w-5 h-5" />
@@ -302,28 +295,7 @@ export default function ChatbotWidget() {
                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
                     <span className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
                   </div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">ครูบอล AI กำลังคิดคำตอบ...</span>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Prompt Suggestions */}
-            {messages.length <= 2 && (
-              <div className="pt-2">
-                <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <HelpCircle className="w-3.5 h-3.5 text-blue-500" /> คำถามที่พบบ่อย (คลิกเพื่อถาม):
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {QUICK_PROMPTS.map((prompt, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => sendQuery(prompt.replace(/^[^\s]+\s/, ''))}
-                      className="text-left text-xs bg-white dark:bg-slate-800/80 hover:bg-blue-50 dark:hover:bg-slate-700/80 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 transition-all flex items-center justify-between group shadow-xs cursor-pointer"
-                    >
-                      <span className="truncate pr-2 font-medium">{prompt}</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </button>
-                  ))}
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">น้องบอท กำลังคิดคำตอบ...</span>
                 </div>
               </div>
             )}
@@ -340,7 +312,7 @@ export default function ChatbotWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="ถามข้อสงสัยเกี่ยวกับวิชาฐานข้อมูล..."
-                aria-label="พิมพ์คำถามของคุณถึง AI ครูบอล"
+                aria-label="พิมพ์คำถามของคุณถึง น้องบอท"
                 disabled={isLoading}
                 className="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl py-3 pl-4 pr-12 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all shadow-inner"
               />
@@ -354,7 +326,7 @@ export default function ChatbotWidget() {
               </button>
             </form>
             <p className="text-[10px] text-center text-slate-400 dark:text-slate-500 mt-1.5">
-              AI อาจให้คำตอบที่คลาดเคลื่อนได้ ควรตรวจสอบเนื้อหาในบทเรียนประกอบ
+              น้องบอทอาจให้คำตอบที่คลาดเคลื่อนได้ ควรตรวจสอบเนื้อหาในบทเรียนประกอบ
             </p>
           </div>
 

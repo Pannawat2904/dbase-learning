@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Prompt, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "sonner";
 
+const prompt = Prompt({
+  weight: ["300", "400", "500", "600", "700", "800"],
+  subsets: ["latin", "thai"],
+  variable: "--font-prompt",
+  display: "swap",
+});
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -58,11 +66,11 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${inter.variable} h-full antialiased`}
+      lang="th"
+      className={`${prompt.variable} ${inter.variable} h-full antialiased font-sans`}
       suppressHydrationWarning
     >
-      <body className="antialiased bg-slate-50 dark:bg-slate-900">
+      <body className="antialiased bg-slate-50 dark:bg-slate-900 font-sans">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
