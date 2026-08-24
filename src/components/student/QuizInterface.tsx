@@ -43,6 +43,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
   const originalQuestions: Question[] = lesson.content?.questions || lesson.questions || [];
   const timeLimit = lesson.content?.timeLimit || lesson.timeLimit || 0; // in minutes
+  const passingScore = Number(lesson.content?.passingScore ?? lesson.passingScore ?? 50);
   const totalPoints = existingScore?.total_score || originalQuestions.reduce((sum, q) => sum + (q.points || 1), 0);
 
   useEffect(() => {
@@ -203,7 +204,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
       
       // Auto issue certificate if post-test passed
       const percentage = Math.round((calculatedScore / totalPoints) * 100) || 0;
-      if (examType === 'post-test' && percentage >= (lesson.passingScore || 60)) {
+      if (examType === 'post-test' && percentage >= passingScore) {
         await issueCertificate(studentId, courseId, moduleId);
         setEarnedCert(true);
       }
@@ -246,6 +247,9 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
               <span className="text-sm font-medium">เวลา {timeLimit} นาที</span>
             </div>
           )}
+          <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-lg text-emerald-600 dark:text-emerald-400">
+            <span className="text-sm font-medium">เกณฑ์ผ่าน: {passingScore}%</span>
+          </div>
         </div>
 
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 p-4 rounded-xl max-w-lg mb-8 text-left flex items-start gap-3">
@@ -256,6 +260,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
               <li>ห้ามคลิกขวา หรือคัดลอกข้อความในข้อสอบ</li>
               <li>ห้ามสลับหน้าจอ (Tab) ไปยังโปรแกรมอื่นระหว่างทำข้อสอบ ระบบจะมีการแจ้งเตือนหากตรวจพบ</li>
               {timeLimit > 0 && <li>ระบบจะส่งข้อสอบอัตโนมัติเมื่อหมดเวลา</li>}
+              <li>เกณฑ์การสอบผ่านสำหรับบทเรียนนี้คือ {passingScore}%</li>
               <li>สำหรับแบบทดสอบหลังเรียน หากทำไม่ผ่าน สามารถเริ่มทำใหม่ได้ไม่เกิน 3 ครั้ง</li>
             </ul>
           </div>
@@ -273,7 +278,6 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
   if (isFinished) {
     const percentage = Math.round((score / totalPoints) * 100) || 0;
-    const passingScore = lesson.passingScore || 60;
     const passed = percentage >= passingScore;
     const title = (lesson.title || '').toLowerCase();
     const isPreTest = title.includes('pre') || title.includes('ก่อนเรียน');
