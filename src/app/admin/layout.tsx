@@ -13,7 +13,8 @@ import {
   Database,
   MessageSquare,
   Bot,
-  UserCog
+  UserCog,
+  User
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logoutTeacher } from "./login/actions";
@@ -184,13 +185,12 @@ export default function AdminLayout({
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200 hidden sm:block">
                 {teacherName}
               </span>
-              <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0 border border-slate-100 dark:border-slate-600">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 overflow-hidden shrink-0 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
                 {teacherAvatar ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={teacherAvatar} alt={teacherName} className="w-full h-full object-cover" />
                 ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(teacherName)}&background=0D8ABC&color=fff`} alt={teacherName} />
+                  <User className="w-4 h-4" />
                 )}
               </div>
             </div>

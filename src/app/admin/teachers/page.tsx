@@ -1,4 +1,4 @@
-import { Users, Plus, ShieldCheck, Trash2, CheckCircle2 } from "lucide-react";
+import { Users, Plus, ShieldCheck, Trash2, CheckCircle2, User } from "lucide-react";
 import { getAdminUsers, getCurrentTeacher } from "@/utils/supabase/queries";
 import AddTeacherButton from "@/components/admin/AddTeacherButton";
 import DeleteTeacherButton from "@/components/admin/DeleteTeacherButton";
@@ -67,12 +67,12 @@ export default async function AdminTeachersPage() {
                   <tr key={teacher.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isCurrent ? 'bg-blue-50/40 dark:bg-blue-950/20' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 font-bold overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
                           {teacher.avatar_url ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img src={teacher.avatar_url} alt={teacher.name} className="w-full h-full object-cover" />
                           ) : (
-                            teacher.name.charAt(0)
+                            <User className="w-5 h-5" />
                           )}
                         </div>
                         <div>

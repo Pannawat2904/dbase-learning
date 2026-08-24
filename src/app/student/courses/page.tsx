@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, Clock, ChevronRight, CheckCircle } from "lucide-react";
+import { Search, Filter, Clock, ChevronRight, CheckCircle, User } from "lucide-react";
 import { getCourses } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
 
@@ -235,8 +235,12 @@ export default function CourseCatalog() {
                 {progress === 100 ? (
                   <div className="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-700/50 pt-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                        <img src={adminAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor)}&background=random`} alt={instructor} className="w-full h-full object-cover" />
+                      <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                        {adminAvatar ? (
+                          <img src={adminAvatar} alt={instructor} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-3.5 h-3.5" />
+                        )}
                       </div>
                       <span className="text-xs text-slate-500">{instructor}</span>
                     </div>
@@ -257,8 +261,12 @@ export default function CourseCatalog() {
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-700/50 pt-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                          <img src={adminAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor)}&background=random`} alt={instructor} className="w-full h-full object-cover" />
+                        <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                          {adminAvatar ? (
+                            <img src={adminAvatar} alt={instructor} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-3.5 h-3.5" />
+                          )}
                         </div>
                         <span className="text-xs text-slate-500">{instructor}</span>
                       </div>
@@ -270,8 +278,12 @@ export default function CourseCatalog() {
                 ) : (
                   <div className="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-700/50 pt-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                        <img src={adminAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor)}&background=random`} alt={instructor} className="w-full h-full object-cover" />
+                      <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                        {adminAvatar ? (
+                          <img src={adminAvatar} alt={instructor} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-3.5 h-3.5" />
+                        )}
                       </div>
                       <span className="text-xs text-slate-500">{instructor}</span>
                     </div>
