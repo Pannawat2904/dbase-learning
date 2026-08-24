@@ -16,7 +16,8 @@ import {
   UserCog,
   User,
   Star,
-  History
+  History,
+  ShieldAlert
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logoutTeacher } from "./login/actions";
@@ -125,6 +126,7 @@ export default function AdminLayout({
     { name: "ตรวจงานและข้อสอบ", href: "/admin/grading", icon: BookOpen },
     { name: "ประเมินความพึงพอใจ", href: "/admin/evaluation", icon: Star },
     { name: "ประวัติการเข้าใช้งาน", href: "/admin/access-logs", icon: History },
+    { name: "การทุจริตระหว่างสอบ", href: "/admin/exam-integrity", icon: ShieldAlert },
     { name: "กล่องข้อความ", href: "/admin/inbox", icon: MessageSquare },
     { name: "ประวัติคุยกับ AI", href: "/admin/ai-logs", icon: Bot },
     { name: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },

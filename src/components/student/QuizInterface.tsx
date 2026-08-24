@@ -4,6 +4,7 @@ import { HelpCircle, Clock, AlertTriangle, CheckCircle2, ChevronRight, ChevronLe
 import { saveExamScore, issueCertificate } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { logExamViolation } from "@/utils/exam-integrity";
 import { toast } from "sonner";
 
 interface Question {
@@ -103,34 +104,72 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
     return () => clearInterval(timer);
   }, [hasStarted, isFinished, timeLeft]);
 
-  // Anti-cheating features
+  // Anti-cheating features: Log violations and notify student
   useEffect(() => {
     if (!hasStarted || isFinished) return;
+
+    const currentAttempt = attemptsCount + 1;
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       toast.error("ไม่อนุญาตให้คลิกขวาในระหว่างการทำข้อสอบครับ");
+      if (studentId) {
+        logExamViolation(studentId, courseId, lesson.id.toString(), 'right_click', currentAttempt);
+      }
     };
+
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
       toast.error("ไม่อนุญาตให้คัดลอกข้อความในระหว่างการทำข้อสอบครับ");
+      if (studentId) {
+        logExamViolation(studentId, courseId, lesson.id.toString(), 'copy_attempt', currentAttempt);
+      }
     };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         toast.warning("คำเตือน: ระบบตรวจพบการสลับหน้าจอ (Tab Switching) ระหว่างการทำแบบทดสอบ!");
+        if (studentId) {
+          logExamViolation(studentId, courseId, lesson.id.toString(), 'tab_switch', currentAttempt);
+        }
+      }
+    };
+
+    const handleWindowBlur = () => {
+      toast.warning("คำเตือน: ระบบตรวจพบการสลับออกนอกหน้าต่างเบราว์เซอร์ (Window Blur)!");
+      if (studentId) {
+        logExamViolation(studentId, courseId, lesson.id.toString(), 'window_blur', currentAttempt);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+        (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c'))
+      ) {
+        e.preventDefault();
+        toast.error("ไม่อนุญาตให้เปิดเครื่องมือนักพัฒนา (DevTools) ระหว่างการสอบ!");
+        if (studentId) {
+          logExamViolation(studentId, courseId, lesson.id.toString(), 'devtools_open', currentAttempt);
+        }
       }
     };
 
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("copy", handleCopy);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("copy", handleCopy);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [hasStarted, isFinished]);
+  }, [hasStarted, isFinished, studentId, courseId, lesson.id, attemptsCount]);
 
   const handleStart = () => {
     if (shuffledQuestions.length === 0) {
