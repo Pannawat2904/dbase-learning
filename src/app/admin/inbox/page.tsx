@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getInboxSummaries, getChatMessages, sendChatMessage, markChatAsRead } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
 import { Send, User, CheckCheck, Loader2, MessageSquare, ChevronLeft } from "lucide-react";
@@ -13,13 +13,20 @@ export default function AdminInboxPage() {
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+  };
 
   useEffect(() => {
     loadSummaries();
 
-    // Setup Realtime Subscription for Admin Inbox
+    // Setup Realtime Subscription for Admin Inbox Summaries
     const supabase = createClient();
-    const channel = supabase.channel('admin_inbox_channel')
+    const channel = supabase.channel('admin_inbox_global_channel')
       .on(
         'postgres_changes',
         {
@@ -27,16 +34,7 @@ export default function AdminInboxPage() {
           schema: 'public',
           table: 'messages'
         },
-        (payload) => {
-          // If the message is for the currently open chat, update the chat
-          setMessages((prev) => {
-            // We use state functional update to ensure we have latest selectedStudentId
-            // but we can't easily access selectedStudentId inside here without refs.
-            // A simple trick is to just loadMessages if payload matches, but we can't do async inside setMessages.
-            return prev;
-          });
-          
-          // Refresh summaries anyway to show latest messages
+        () => {
           loadSummaries();
         }
       )
@@ -62,7 +60,23 @@ export default function AdminInboxPage() {
           filter: `student_id=eq.${selectedStudentId}`
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+          setMessages((prev) => {
+            // Avoid duplicates with optimistic UI
+            const exists = prev.some(m => 
+              m.id === payload.new.id || 
+              (m.id.startsWith?.('temp_') && m.message === payload.new.message && m.sender_role === payload.new.sender_role)
+            );
+            if (exists) {
+              return prev.map(m => 
+                (m.id.startsWith?.('temp_') && m.message === payload.new.message && m.sender_role === payload.new.sender_role) 
+                  ? payload.new 
+                  : m
+              );
+            }
+            return [...prev, payload.new];
+          });
+          scrollToBottom();
+
           if (payload.new.sender_role === 'student') {
             markChatAsRead(selectedStudentId, 'student');
           }
@@ -76,7 +90,6 @@ export default function AdminInboxPage() {
   }, [selectedStudentId]);
 
   const loadSummaries = async () => {
-    setIsLoading(true);
     const data = await getInboxSummaries();
     setSummaries(data);
     setIsLoading(false);
@@ -85,7 +98,8 @@ export default function AdminInboxPage() {
   const loadMessages = async (studentId: string) => {
     setSelectedStudentId(studentId);
     const data = await getChatMessages(studentId);
-    setMessages(data);
+    setMessages(data || []);
+    scrollToBottom();
     
     // Mark messages from student as read
     await markChatAsRead(studentId, 'student');
@@ -98,18 +112,45 @@ export default function AdminInboxPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedStudentId) return;
+    const textToSend = newMessage.trim();
+    if (!textToSend || !selectedStudentId) return;
+
+    // Instant Optimistic UI Update (displays immediately in 0ms)
+    const tempId = 'temp_' + Date.now();
+    const optimisticMessage = {
+      id: tempId,
+      student_id: selectedStudentId,
+      sender_role: 'admin',
+      message: textToSend,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setNewMessage("");
+    scrollToBottom();
+
+    // Update left sidebar immediately
+    setSummaries(prev => prev.map(s => 
+      s.student.id === selectedStudentId 
+        ? { ...s, latestMessage: textToSend, latestMessageTime: new Date().toISOString() } 
+        : s
+    ));
 
     setIsSending(true);
-    const success = await sendChatMessage(selectedStudentId, 'admin', newMessage.trim());
-    if (success) {
-      setNewMessage("");
-      await loadMessages(selectedStudentId);
-      await loadSummaries(); // Refresh latest message
-    } else {
-      toast.error("ส่งข้อความไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    try {
+      const success = await sendChatMessage(selectedStudentId, 'admin', textToSend);
+      if (!success) {
+        toast.error("ส่งข้อความไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      toast.error("เกิดข้อผิดพลาดในการส่งข้อความ");
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    } finally {
+      setIsSending(false);
     }
-    setIsSending(false);
   };
 
   const selectedStudent = summaries.find(s => s.student.id === selectedStudentId)?.student;
@@ -213,6 +254,7 @@ export default function AdminInboxPage() {
                     </div>
                   </div>
                 ))}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Chat Input */}

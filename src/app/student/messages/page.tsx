@@ -26,17 +26,30 @@ export default function StudentMessagesPage() {
           await loadMessages(data.id);
 
           // Setup Realtime Subscription
-          channel = supabase.channel('student_chat_channel')
+          channel = supabase.channel(`student_chat_${data.id}`)
             .on(
               'postgres_changes',
               {
                 event: 'INSERT',
                 schema: 'public',
-                table: 'chat_messages',
+                table: 'messages',
                 filter: `student_id=eq.${data.id}`
               },
               (payload) => {
-                setMessages((prev) => [...prev, payload.new]);
+                setMessages((prev) => {
+                  const exists = prev.some(m => 
+                    m.id === payload.new.id || 
+                    (m.id.startsWith?.('temp_') && m.message === payload.new.message && m.sender_role === payload.new.sender_role)
+                  );
+                  if (exists) {
+                    return prev.map(m => 
+                      (m.id.startsWith?.('temp_') && m.message === payload.new.message && m.sender_role === payload.new.sender_role)
+                        ? payload.new
+                        : m
+                    );
+                  }
+                  return [...prev, payload.new];
+                });
                 scrollToBottom();
                 if (payload.new.sender_role === 'admin') {
                   markChatAsRead(data.id, 'admin');
@@ -57,7 +70,7 @@ export default function StudentMessagesPage() {
   const loadMessages = async (userId: string) => {
     setIsLoading(true);
     const data = await getChatMessages(userId);
-    setMessages(data);
+    setMessages(data || []);
     await markChatAsRead(userId, 'admin'); // Mark messages from admin as read
     setIsLoading(false);
     scrollToBottom();
@@ -66,22 +79,41 @@ export default function StudentMessagesPage() {
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+    }, 50);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !profile) return;
+    const textToSend = newMessage.trim();
+    if (!textToSend || !profile) return;
+
+    // Instant Optimistic UI Update
+    const tempId = 'temp_' + Date.now();
+    const optimisticMessage = {
+      id: tempId,
+      student_id: profile.id,
+      sender_role: 'student',
+      message: textToSend,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setNewMessage("");
+    scrollToBottom();
 
     setIsSending(true);
-    const success = await sendChatMessage(profile.id, 'student', newMessage.trim());
-    if (success) {
-      setNewMessage("");
-      const data = await getChatMessages(profile.id);
-      setMessages(data);
-      scrollToBottom();
+    try {
+      const success = await sendChatMessage(profile.id, 'student', textToSend);
+      if (!success) {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    } finally {
+      setIsSending(false);
     }
-    setIsSending(false);
   };
 
   return (
