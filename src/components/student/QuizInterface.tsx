@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { HelpCircle, Clock, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft, RotateCcw, MessageSquare, Award } from "lucide-react";
+import { HelpCircle, Clock, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft, RotateCcw, MessageSquare, Award, Lock, ShieldAlert, ShieldX } from "lucide-react";
 import { saveExamScore, issueCertificate } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/client";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
-import { logExamViolation } from "@/utils/exam-integrity";
+import { logExamViolation, VIOLATION_TYPE_CONFIG, ViolationType } from "@/utils/exam-integrity";
 import { toast } from "sonner";
 
 interface Question {
@@ -45,6 +45,11 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
   const [showReview, setShowReview] = useState(false);
   const [attemptsCount, setAttemptsCount] = useState<number>(existingScore ? 1 : 0);
 
+  // Integrity & Anti-cheating two-strike system state
+  const [violationsList, setViolationsList] = useState<{ type: ViolationType; label: string; timestamp: string }[]>([]);
+  const [isExamLocked, setIsExamLocked] = useState(existingScore?.status === 'disqualified_cheating');
+  const [warningModal, setWarningModal] = useState<{ isOpen: boolean; label: string; timeStr: string } | null>(null);
+
   const originalQuestions: Question[] = lesson.content?.questions || lesson.questions || [];
   const timeLimit = lesson.content?.timeLimit || lesson.timeLimit || 0; // in minutes
   const passingScore = Number(lesson.content?.passingScore ?? lesson.passingScore ?? 50);
@@ -82,6 +87,9 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
             setScore(latest.score || 0);
             setAnswers(latest.answers || {});
             setExamStatus(latest.status || 'graded');
+            if (latest.status === 'disqualified_cheating') {
+              setIsExamLocked(true);
+            }
             setIsFinished(true);
           }
         } catch (err) {
@@ -94,52 +102,121 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
 
   useEffect(() => {
     let timer: any;
-    if (hasStarted && !isFinished && timeLeft !== null && timeLeft > 0) {
+    if (hasStarted && !isFinished && !isExamLocked && timeLeft !== null && timeLeft > 0) {
       timer = setInterval(() => {
         setTimeLeft((prev) => (prev ? prev - 1 : 0));
       }, 1000);
-    } else if (timeLeft === 0 && !isFinished) {
+    } else if (timeLeft === 0 && !isFinished && !isExamLocked) {
       handleSubmitQuiz();
     }
     return () => clearInterval(timer);
-  }, [hasStarted, isFinished, timeLeft]);
+  }, [hasStarted, isFinished, isExamLocked, timeLeft]);
 
-  // Anti-cheating features: Log violations and notify student
-  useEffect(() => {
-    if (!hasStarted || isFinished) return;
+  // Handle anti-cheating violations (1st = Warning, 2nd = Lock Immediately)
+  const handleViolation = (type: ViolationType) => {
+    if (!hasStarted || isFinished || isExamLocked) return;
 
+    const cfg = VIOLATION_TYPE_CONFIG[type] || VIOLATION_TYPE_CONFIG.tab_switch;
+    const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const currentAttempt = attemptsCount + 1;
+
+    setViolationsList((prev) => {
+      const nextList = [...prev, { type, label: cfg.label, timestamp: timeStr }];
+      const count = nextList.length;
+
+      // 1. Log violation to DB
+      if (studentId) {
+        logExamViolation(studentId, courseId, lesson.id.toString(), type, currentAttempt);
+      }
+
+      if (count === 1) {
+        // ⚠️ Strike 1: Warning modal and alert
+        setWarningModal({
+          isOpen: true,
+          label: cfg.label,
+          timeStr
+        });
+        toast.error(`⚠️ คำเตือนการทุจริตครั้งที่ 1/2: ตรวจพบ ${cfg.label}! หากมีอีก 1 ครั้ง ระบบจะล็อกการสอบทันที!`, {
+          duration: 8000
+        });
+      } else if (count >= 2) {
+        // 🚨 Strike 2: LOCK IMMEDIATELY!
+        setIsExamLocked(true);
+        setIsFinished(true);
+        setExamStatus('disqualified_cheating');
+        setScore(0);
+        setWarningModal(null);
+
+        toast.error(`🚨 การสอบถูกระงับ! คุณทำผิดระเบียบครบ 2 ครั้ง ระบบได้ทำการล็อกการสอบและตัดสิทธิ์ทันที`, {
+          duration: 12000
+        });
+
+        // Save disqualified record to DB
+        if (studentId) {
+          (async () => {
+            try {
+              const pts = originalQuestions.reduce((sum, q) => sum + (q.points || 1), 0);
+              const explicitType = lesson.content?.examType || lesson.examType || (lesson.title.toLowerCase().includes('post') ? 'post-test' : 'quiz');
+              await saveExamScore(
+                studentId,
+                courseId,
+                lesson.id.toString(),
+                0,
+                pts,
+                explicitType,
+                answers,
+                'disqualified_cheating'
+              );
+
+              const supabase = createClient();
+              await supabase.from('student_lesson_progress').delete()
+                .eq('student_id', studentId)
+                .eq('lesson_id', lesson.id.toString());
+
+              if (onScoreUpdated) {
+                onScoreUpdated({
+                  lesson_id: lesson.id.toString(),
+                  score: 0,
+                  total_score: pts,
+                  exam_type: explicitType,
+                  status: 'disqualified_cheating',
+                  percentage: 0,
+                  passed: false
+                });
+              }
+            } catch (err) {
+              console.error("Error saving disqualified score:", err);
+            }
+          })();
+        }
+      }
+
+      return nextList;
+    });
+  };
+
+  // Anti-cheating event listeners
+  useEffect(() => {
+    if (!hasStarted || isFinished || isExamLocked) return;
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      toast.error("ไม่อนุญาตให้คลิกขวาในระหว่างการทำข้อสอบครับ");
-      if (studentId) {
-        logExamViolation(studentId, courseId, lesson.id.toString(), 'right_click', currentAttempt);
-      }
+      handleViolation('right_click');
     };
 
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
-      toast.error("ไม่อนุญาตให้คัดลอกข้อความในระหว่างการทำข้อสอบครับ");
-      if (studentId) {
-        logExamViolation(studentId, courseId, lesson.id.toString(), 'copy_attempt', currentAttempt);
-      }
+      handleViolation('copy_attempt');
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        toast.warning("คำเตือน: ระบบตรวจพบการสลับหน้าจอ (Tab Switching) ระหว่างการทำแบบทดสอบ!");
-        if (studentId) {
-          logExamViolation(studentId, courseId, lesson.id.toString(), 'tab_switch', currentAttempt);
-        }
+        handleViolation('tab_switch');
       }
     };
 
     const handleWindowBlur = () => {
-      toast.warning("คำเตือน: ระบบตรวจพบการสลับออกนอกหน้าต่างเบราว์เซอร์ (Window Blur)!");
-      if (studentId) {
-        logExamViolation(studentId, courseId, lesson.id.toString(), 'window_blur', currentAttempt);
-      }
+      handleViolation('window_blur');
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -149,10 +226,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
         (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c'))
       ) {
         e.preventDefault();
-        toast.error("ไม่อนุญาตให้เปิดเครื่องมือนักพัฒนา (DevTools) ระหว่างการสอบ!");
-        if (studentId) {
-          logExamViolation(studentId, courseId, lesson.id.toString(), 'devtools_open', currentAttempt);
-        }
+        handleViolation('devtools_open');
       }
     };
 
@@ -169,7 +243,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
       window.removeEventListener("blur", handleWindowBlur);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [hasStarted, isFinished, studentId, courseId, lesson.id, attemptsCount]);
+  }, [hasStarted, isFinished, isExamLocked, studentId, courseId, lesson.id, attemptsCount]);
 
   const handleStart = () => {
     if (shuffledQuestions.length === 0) {
@@ -363,6 +437,62 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
         >
           เริ่มทำแบบทดสอบ
         </button>
+      </div>
+    );
+  }
+
+  // 1. Locked & Disqualified Screen (when cheating detected twice or previously locked)
+  if (isExamLocked || examStatus === 'disqualified_cheating') {
+    return (
+      <div className="w-full min-h-[520px] bg-red-50/60 dark:bg-red-950/20 border-2 border-red-300 dark:border-red-800/80 rounded-3xl p-8 md:p-12 shadow-xl flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300">
+        <div className="w-24 h-24 rounded-3xl bg-red-600 text-white flex items-center justify-center mb-6 shadow-xl shadow-red-600/30 animate-pulse">
+          <ShieldAlert className="w-12 h-12" />
+        </div>
+
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 text-xs font-bold mb-3 border border-red-200 dark:border-red-800">
+          <Lock className="w-3.5 h-3.5" /> การสอบถูกระงับและล็อกสิทธิ์ (Exam Locked)
+        </div>
+
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-red-900 dark:text-red-300 mb-3">
+          การสอบถูกระงับเนื่องจากตรวจพบการทุจริตครบ 2 ครั้ง
+        </h2>
+
+        <p className="text-slate-600 dark:text-slate-300 max-w-lg mb-6 text-sm sm:text-base leading-relaxed">
+          ระบบตรวจพบการละเมิดกฎระเบียบการสอบ (เช่น สลับหน้าจอ, ออกนอกเบราว์เซอร์, คลิกขวา หรือพยายามคัดลอก) ครบ 2 ครั้งในการสอบชุดนี้ ระบบจึงได้ทำการ <strong>ล็อกการสอบและบันทึกคะแนนเป็น 0 ทันที</strong>
+        </p>
+
+        {/* Violations Summary Box */}
+        {violationsList.length > 0 && (
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-red-200 dark:border-red-900/60 mb-6 text-left shadow-sm">
+            <h4 className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" /> บันทึกพฤติกรรมที่ตรวจพบ ({violationsList.length} ครั้ง):
+            </h4>
+            <div className="space-y-2">
+              {violationsList.map((v, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-100 dark:border-red-900/30">
+                  <span className="font-semibold text-red-900 dark:text-red-200">ครั้งที่ {idx + 1}: {v.label}</span>
+                  <span className="text-red-500 font-mono text-[11px]">{v.timestamp}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/student/messages"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25 transition-all"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>ติดต่อคุณครูผู้สอน</span>
+          </Link>
+          <Link
+            href="/student/courses"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+          >
+            <span>กลับไปหน้ารวมวิชา</span>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -680,6 +810,43 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
           </button>
         )}
       </div>
+
+      {/* ⚠️ Warning Modal for 1st Violation Strike */}
+      {warningModal?.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border-2 border-amber-400 dark:border-amber-600 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-300 dark:border-amber-700 shadow-md shadow-amber-500/20 animate-bounce">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-xs font-bold mb-2">
+              ⚠️ คำเตือนการทุจริต (ครั้งที่ 1/2)
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
+              ตรวจพบพฤติกรรมผิดระเบียบการสอบ!
+            </h3>
+
+            <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-3">
+              {warningModal.label}
+            </p>
+
+            <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-2xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 text-left mb-6 space-y-1.5">
+              <p className="font-bold text-amber-800 dark:text-amber-300">⚠️ ข้อควรระวัง (เหลือโอกาสอีก 0 ครั้ง):</p>
+              <p className="leading-relaxed">
+                นี่คือการแจ้งเตือนครั้งที่ 1 หากตรวจพบการสลับหน้าจอ, ออกนอกเบราว์เซอร์, คลิกขวา, คัดลอก หรือเปิดเครื่องมือผู้พัฒนาอีก <strong>เพียง 1 ครั้ง ระบบจะทำการล็อกการสอบและตัดสิทธิ์ทันทีโดยได้ 0 คะแนน!</strong>
+              </p>
+            </div>
+
+            <button
+              onClick={() => setWarningModal(null)}
+              className="w-full py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/25 transition-all cursor-pointer"
+            >
+              รับทราบและกลับไปทำข้อสอบ
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
