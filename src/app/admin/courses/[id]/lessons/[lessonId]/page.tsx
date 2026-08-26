@@ -320,7 +320,7 @@ export default function LessonEditor() {
             </div>
 
             {pdfUrl && (
-              <div className="mt-6 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-[500px]">
+              <div className="mt-6 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden aspect-[1/1.414]">
                 <iframe src={getEmbedUrl(pdfUrl)} className="w-full h-full" title="Slide Preview" allowFullScreen></iframe>
               </div>
             )}
@@ -399,7 +399,7 @@ export default function LessonEditor() {
               </div>
 
               {pdfUrl && (
-                <div className="mt-4 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-[500px]">
+                <div className="mt-4 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden aspect-[1/1.414]">
                   <iframe src={getEmbedUrl(pdfUrl)} className="w-full h-full" title="PDF Preview" allowFullScreen></iframe>
                 </div>
               )}

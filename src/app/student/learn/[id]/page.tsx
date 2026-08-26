@@ -599,8 +599,8 @@ function SlideViewer({ lesson }: { lesson: Lesson }) {
 
   if (pdfUrl) {
     return (
-      <div className="w-full h-full min-h-[500px] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <iframe src={getEmbedUrl(pdfUrl)} className="w-full h-full min-h-[500px]" title="Slide Content" allowFullScreen></iframe>
+      <div className="w-full h-full min-h-[500px] aspect-[1/1.414] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        <iframe src={getEmbedUrl(pdfUrl)} className="w-full h-full" title="Slide Content" allowFullScreen></iframe>
       </div>
     );
   }
@@ -696,7 +696,7 @@ function VideoWithWorksheet({ lesson }: { lesson: Lesson }) {
             )}
 
             {pdfUrl && (
-              <div className="w-full h-[600px] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+              <div className="w-full aspect-[1/1.414] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                 <iframe src={getPdfEmbedUrl(pdfUrl)} className="w-full h-full" title="PDF Document" allowFullScreen></iframe>
               </div>
             )}
