@@ -376,6 +376,47 @@ export default function LessonEditor() {
                 />
               </div>
             </div>
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">คำสั่งปฏิบัติงาน (PDF)</h3>
+              <p className="text-sm text-slate-500 mb-4">อัปโหลดไฟล์ PDF หรือวางลิงก์ไฟล์ PDF (เช่น Google Drive) สำหรับคำสั่งปฏิบัติงาน</p>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">URL ของไฟล์ PDF</label>
+                <input 
+                  type="url" 
+                  value={pdfUrl}
+                  onChange={(e) => setPdfUrl(e.target.value)}
+                  placeholder="https://... หรือลิงก์ Google Drive"
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {pdfUrl && (
+                <div className="mt-4 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-[500px]">
+                  <iframe src={getEmbedUrl(pdfUrl)} className="w-full h-full" title="PDF Preview" allowFullScreen></iframe>
+                </div>
+              )}
+            </div>
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">รายละเอียด / คำสั่งเพิ่มเติม</h3>
+              <p className="text-sm text-slate-500 mb-4">พิมพ์คำอธิบายหรือคำสั่งเพิ่มเติมสำหรับใบงานนี้</p>
+              
+              <div className="space-y-2">
+                <textarea 
+                  rows={6}
+                  value={contentBody}
+                  onChange={(e) => setContentBody(e.target.value)}
+                  placeholder="รายละเอียดคำสั่งปฏิบัติงาน..."
+                  className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans text-sm leading-relaxed"
+                ></textarea>
+              </div>
+            </div>
           </div>
         )}
 
