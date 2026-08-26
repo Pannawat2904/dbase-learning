@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import "react-quill-new/dist/quill.snow.css";
+
+const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { ChevronLeft, Save, FileText, PlayCircle, HelpCircle, Loader2, Plus, Trash2, Settings, Clock, Target, GripVertical, Wand2, X, Sparkles, Upload, Paperclip, Award, Calendar, BookOpen, Layers, CheckSquare, FileCheck } from "lucide-react";
@@ -408,13 +412,13 @@ export default function LessonEditor() {
               <p className="text-sm text-slate-500 mb-4">พิมพ์คำอธิบายหรือคำสั่งเพิ่มเติมสำหรับใบงานนี้</p>
               
               <div className="space-y-2">
-                <textarea 
-                  rows={6}
+                <ReactQuill 
+                  theme="snow"
                   value={contentBody}
-                  onChange={(e) => setContentBody(e.target.value)}
+                  onChange={setContentBody}
                   placeholder="รายละเอียดคำสั่งปฏิบัติงาน..."
-                  className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans text-sm leading-relaxed"
-                ></textarea>
+                  className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden [&_.ql-toolbar]:rounded-t-xl [&_.ql-container]:rounded-b-xl [&_.ql-container]:min-h-[150px] [&_.ql-editor]:text-base [&_.ql-editor]:font-sans [&_.ql-editor]:text-slate-700 dark:[&_.ql-editor]:text-slate-300"
+                />
               </div>
             </div>
           </div>
@@ -541,14 +545,14 @@ export default function LessonEditor() {
               <label className="block text-sm font-bold text-slate-800 dark:text-slate-200">
                 คำสั่งและรายละเอียดโจทย์งานปฏิบัติ (Instructions / Description)
               </label>
-              <p className="text-xs text-slate-500">พิมพ์คำอธิบาย จุดประสงค์ ขั้นตอนการทำงาน และสิ่งที่ต้องส่ง (รองรับ HTML และข้อความทั่วไป)</p>
-              <textarea 
-                rows={10}
+              <p className="text-xs text-slate-500">พิมพ์คำอธิบาย จุดประสงค์ ขั้นตอนการทำงาน และสิ่งที่ต้องส่ง (สามารถจัดรูปแบบข้อความได้ตามต้องการ)</p>
+              <ReactQuill 
+                theme="snow"
                 value={contentBody}
-                onChange={(e) => setContentBody(e.target.value)}
+                onChange={setContentBody}
                 placeholder="ระบุคำสั่งและโจทย์งานปฏิบัติ เช่น ให้นักเรียนออกแบบฐานข้อมูล..."
-                className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 font-sans text-sm leading-relaxed"
-              ></textarea>
+                className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden [&_.ql-toolbar]:rounded-t-2xl [&_.ql-container]:rounded-b-2xl [&_.ql-container]:min-h-[250px] [&_.ql-editor]:text-base [&_.ql-editor]:font-sans [&_.ql-editor]:text-slate-700 dark:[&_.ql-editor]:text-slate-300 [&_.ql-toolbar]:border-slate-200 dark:[&_.ql-toolbar]:border-slate-700 [&_.ql-container]:border-slate-200 dark:[&_.ql-container]:border-slate-700"
+              />
             </div>
 
             {/* Settings Grid: Max Score, Due Date, Allowed Extensions */}
