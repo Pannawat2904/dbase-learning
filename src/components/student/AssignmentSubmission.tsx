@@ -122,7 +122,7 @@ export default function AssignmentSubmission({ lesson, courseId }: { lesson: any
               <span>📋 คำสั่งและรายละเอียดงานปฏิบัติ</span>
             </h3>
             <div 
-              className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-200 text-sm leading-relaxed space-y-3" 
+              className="max-w-none text-slate-700 dark:text-slate-200 text-sm leading-relaxed [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:mb-4 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:mb-4 [&_li]:mb-1 [&_p]:mb-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-4 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-bold [&_h3]:mb-2 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_a]:text-blue-600 [&_a]:underline" 
               dangerouslySetInnerHTML={{ __html: lesson.content.body }} 
             />
           </div>
