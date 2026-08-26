@@ -621,10 +621,23 @@ function VideoWithWorksheet({ lesson }: { lesson: Lesson }) {
   const [activeTab, setActiveTab] = useState<'video' | 'worksheet'>('video');
   const youtubeUrl = lesson.content?.youtubeUrl;
   const worksheetUrl = lesson.content?.worksheetUrl;
+  const pdfUrl = lesson.content?.pdfUrl;
+  const contentBody = lesson.content?.body;
 
   const match = youtubeUrl?.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
   const videoId = (match && match[2].length === 11) ? match[2] : null;
   const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : youtubeUrl || '';
+
+  const getPdfEmbedUrl = (url: string) => {
+    if (!url) return "";
+    if (url.includes("drive.google.com/file/d/")) {
+      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://drive.google.com/file/d/${match[1]}/preview`;
+      }
+    }
+    return url;
+  };
 
   return (
     <div className="w-full h-full flex flex-col gap-4">
@@ -649,40 +662,61 @@ function VideoWithWorksheet({ lesson }: { lesson: Lesson }) {
               </div>
             )}
           </div>
-          {worksheetUrl && (
+          {(worksheetUrl || pdfUrl || contentBody) && (
             <div className="flex justify-end mt-2 animate-in fade-in">
               <button 
                 onClick={() => setActiveTab('worksheet')}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium shadow-sm transition-colors flex items-center gap-2"
               >
-                ถัดไป: ทำใบงาน <ChevronRight className="w-5 h-5" />
+                ถัดไป: ดูคำสั่ง / ใบงาน <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           )}
         </>
       ) : (
-        <div className="w-full flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-500">
-          <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 flex items-center justify-center mb-6">
-            <FileText className="w-8 h-8 text-green-600 dark:text-green-400" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">ใบงานสำหรับบทเรียนนี้</h2>
-          <p className="text-slate-500 mb-8 max-w-md">คุณครูได้เตรียมใบงานไว้ในรูปแบบของฟอร์มออนไลน์ ให้นักเรียนกดปุ่มด้านล่างเพื่อเข้าไปทำใบงานและส่งคำตอบได้เลยครับ</p>
-          
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="w-full flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col animate-in fade-in slide-in-from-right-4 duration-500 overflow-y-auto">
+          <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
             <button 
               onClick={() => setActiveTab('video')}
-              className="px-6 py-3 rounded-xl font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 justify-center"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors"
             >
-              <ChevronLeft className="w-5 h-5" /> กลับไปดูวิดีโอ
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <a 
-              href={worksheetUrl} 
-              target="_blank" 
-              rel="noreferrer"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-medium shadow-sm transition-colors flex items-center gap-2 justify-center"
-            >
-              เปิดใบงานออนไลน์ <ExternalLink className="w-5 h-5" />
-            </a>
+            <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <FileText className="w-6 h-6 text-blue-500" />
+              รายละเอียดและใบงาน
+            </h2>
+          </div>
+
+          <div className="space-y-8 flex-1">
+            {contentBody && (
+              <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
+                <div dangerouslySetInnerHTML={{ __html: contentBody }} />
+              </div>
+            )}
+
+            {pdfUrl && (
+              <div className="w-full h-[600px] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <iframe src={getPdfEmbedUrl(pdfUrl)} className="w-full h-full" title="PDF Document" allowFullScreen></iframe>
+              </div>
+            )}
+
+            {worksheetUrl && (
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">ฟอร์มส่งใบงาน</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">คลิกที่ปุ่มเพื่อเปิดฟอร์มหรือใบงานออนไลน์</p>
+                </div>
+                <a 
+                  href={worksheetUrl} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
+                >
+                  เปิดใบงานออนไลน์ <ExternalLink className="w-5 h-5" />
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}
