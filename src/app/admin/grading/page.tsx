@@ -13,10 +13,10 @@ export default function GradingPage() {
   const [loading, setLoading] = useState(true);
   
   const [selectedExam, setSelectedExam] = useState<any | null>(null);
-  const [scores, setScores] = useState<Record<string, number>>({});
+  const [scores, setScores] = useState<Record<string, string>>({});
   
   const [selectedAssignment, setSelectedAssignment] = useState<any | null>(null);
-  const [assignmentScore, setAssignmentScore] = useState<number | ''>('');
+  const [assignmentScore, setAssignmentScore] = useState<string>('');
   const [teacherComment, setTeacherComment] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,8 +73,8 @@ export default function GradingPage() {
     
     const questions = selectedExam.lesson?.content?.questions || [];
     questions.forEach((q: any) => {
-      if (q.type === 'essay' && scores[q.id] !== undefined) {
-        totalAddedScore += scores[q.id];
+      if (q.type === 'essay' && scores[q.id] !== undefined && scores[q.id] !== '') {
+        totalAddedScore += Number(scores[q.id]) || 0;
       }
     });
 
@@ -252,7 +252,7 @@ export default function GradingPage() {
                           min="0"
                           max={q.points || 1}
                           value={scores[q.id] || ''}
-                          onChange={(e) => setScores({ ...scores, [q.id]: parseInt(e.target.value) || 0 })}
+                          onChange={(e) => setScores({ ...scores, [q.id]: e.target.value })}
                           className="w-24 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                           placeholder="0"
                         />
@@ -354,7 +354,7 @@ export default function GradingPage() {
                       type="number"
                       min="0"
                       value={assignmentScore}
-                      onChange={(e) => setAssignmentScore(e.target.value === '' ? '' : Number(e.target.value))}
+                      onChange={(e) => setAssignmentScore(e.target.value)}
                       className="w-32 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-800 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-lg font-semibold"
                       placeholder="0"
                       required
