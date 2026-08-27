@@ -4,11 +4,13 @@ import { createClient } from "@/utils/supabase/server";
 import StudentActionsMenu from "@/components/admin/StudentActionsMenu";
 import AutoRefresh from "@/components/admin/AutoRefresh";
 import ExportExcelButton from "@/components/admin/ExportExcelButton";
+import CourseSelector from "@/components/admin/CourseSelector";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function AdminStudentsPage() {
+export default async function AdminStudentsPage(props: { searchParams?: any }) {
+  const searchParams = await Promise.resolve(props.searchParams || {});
   const supabase = await createClient();
   const dbStudents = await getStudents();
   const allScores = await getAllStudentScores();
@@ -16,25 +18,35 @@ export default async function AdminStudentsPage() {
   const allAssignments = await getAllStudentAssignments();
   const courses = await getCourses();
   
+  const activeCourseId = searchParams.course || courses[0]?.id?.toString();
+  
   // Calculate total lessons accurately from lessons table
-  const { data: allDbLessons } = await supabase.from('lessons').select('id');
-  const totalLessons = allDbLessons?.length || courses.reduce((sum, c) => sum + (c.totalLessons || 0), 0) || 1;
+  const { data: allDbLessons } = await supabase.from('lessons').select('id, course_id');
+  const courseLessons = allDbLessons?.filter(l => String(l.course_id) === String(activeCourseId)) || [];
+  const courseLessonIds = new Set(courseLessons.map(l => String(l.id)));
+  const totalLessons = courseLessons.length || 1;
+
   const nowTime = Date.now();
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
   
   // Format real students
   const students = dbStudents?.map((student: any) => {
-    const studentScores = allScores?.filter((s: any) => s.student_id === student.id) || [];
-    const preTestScore = studentScores.find((s: any) => s.exam_type === 'pre-test');
-    const postTestScore = studentScores.find((s: any) => s.exam_type === 'post-test');
+    // If course_id is missing on old scores, we can fallback to checking lesson_id
+    const filteredScores = allScores?.filter((s: any) => 
+      s.student_id === student.id && 
+      (String(s.course_id) === String(activeCourseId) || courseLessonIds.has(String(s.lesson_id)))
+    ) || [];
+
+    const preTestScore = filteredScores.find((s: any) => s.exam_type === 'pre-test');
+    const postTestScore = filteredScores.find((s: any) => s.exam_type === 'post-test');
     
     // Calculate Quiz and Assignment scores
-    const quizScores = studentScores.filter((s: any) => s.exam_type === 'quiz' && s.status === 'graded');
+    const quizScores = filteredScores.filter((s: any) => s.exam_type === 'quiz' && s.status === 'graded');
     const totalQuizScore = quizScores.reduce((sum: number, s: any) => sum + (s.score || 0), 0);
     const totalQuizMax = quizScores.reduce((sum: number, s: any) => sum + (s.total_score || 0), 0);
     const quizText = quizScores.length > 0 ? `${totalQuizScore}/${totalQuizMax}` : "-";
 
-    const studentAssignmentsList = allAssignments.filter((a: any) => a.student_id === student.id && a.score !== null);
+    const studentAssignmentsList = allAssignments.filter((a: any) => a.student_id === student.id && a.score !== null && courseLessonIds.has(String(a.lesson_id)));
     const totalAssignmentScore = studentAssignmentsList.reduce((sum: number, a: any) => sum + (a.score || 0), 0);
     const assignmentText = studentAssignmentsList.length > 0 ? `${totalAssignmentScore}` : "-";
     
@@ -43,7 +55,7 @@ export default async function AdminStudentsPage() {
     const failedPostTestIds = new Set<string>();
     const passedScoresIds: string[] = [];
 
-    studentScores.forEach((s: any) => {
+    filteredScores.forEach((s: any) => {
       const lid = String(s.lesson_id);
       const isPost = s.exam_type === 'post-test';
       const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
@@ -61,9 +73,9 @@ export default async function AdminStudentsPage() {
     });
 
     const studentCompletedLessonsSet = new Set([
-      ...allProgress.filter((p: any) => p.student_id === student.id).map((p: any) => String(p.lesson_id)).filter(id => !failedPostTestIds.has(id)),
+      ...allProgress.filter((p: any) => p.student_id === student.id && (String(p.course_id) === String(activeCourseId) || courseLessonIds.has(String(p.lesson_id)))).map((p: any) => String(p.lesson_id)).filter(id => !failedPostTestIds.has(id)),
       ...passedScoresIds,
-      ...allAssignments.filter((a: any) => a.student_id === student.id).map((a: any) => String(a.lesson_id))
+      ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => String(a.lesson_id))
     ].filter(Boolean)); // filter out null/undefined
     
     const progress = Math.min(100, Math.round((studentCompletedLessonsSet.size / totalLessons) * 100));
@@ -75,9 +87,9 @@ export default async function AdminStudentsPage() {
     let statusColor = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
 
     const allActivityDates = [
-      ...studentScores.map((s: any) => new Date(s.created_at).getTime()),
-      ...allProgress.filter((p: any) => p.student_id === student.id).map((p: any) => new Date(p.created_at).getTime()),
-      ...allAssignments.filter((a: any) => a.student_id === student.id).map((a: any) => new Date(a.created_at).getTime())
+      ...filteredScores.map((s: any) => new Date(s.created_at).getTime()),
+      ...allProgress.filter((p: any) => p.student_id === student.id && (String(p.course_id) === String(activeCourseId) || courseLessonIds.has(String(p.lesson_id)))).map((p: any) => new Date(p.created_at).getTime()),
+      ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => new Date(a.created_at).getTime())
     ].filter(Boolean);
     
     const isPostTestPassed = postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false;
@@ -138,7 +150,10 @@ export default async function AdminStudentsPage() {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">ติดตามความก้าวหน้าและผลคะแนนของผู้เรียนแบบ Real-time</p>
         </div>
-        <ExportExcelButton students={students} />
+        <div className="flex items-center gap-3">
+          <CourseSelector courses={courses} activeCourseId={activeCourseId} />
+          <ExportExcelButton students={students} />
+        </div>
       </div>
 
       {/* Filters & Search */}
