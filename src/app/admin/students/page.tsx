@@ -12,17 +12,25 @@ export const revalidate = 0;
 export default async function AdminStudentsPage(props: { searchParams?: any }) {
   const searchParams = await Promise.resolve(props.searchParams || {});
   const supabase = await createClient();
-  const dbStudents = await getStudents();
-  const allScores = await getAllStudentScores();
-  const allProgress = await getAllStudentProgress();
-  const allAssignments = await getAllStudentAssignments();
-  const courses = await getCourses();
+  const [
+    dbStudents,
+    allScores,
+    allProgress,
+    allAssignments,
+    courses,
+    { data: allDbModules },
+    { data: allDbLessons }
+  ] = await Promise.all([
+    getStudents(),
+    getAllStudentScores(),
+    getAllStudentProgress(),
+    getAllStudentAssignments(),
+    getCourses(),
+    supabase.from('modules').select('id, course_id'),
+    supabase.from('lessons').select('id, module_id')
+  ]);
   
   const activeCourseId = searchParams.course || courses[0]?.id?.toString();
-  
-  // Calculate total lessons accurately from lessons table
-  const { data: allDbModules } = await supabase.from('modules').select('id, course_id');
-  const { data: allDbLessons } = await supabase.from('lessons').select('id, module_id');
   
   const courseModuleIds = new Set(allDbModules?.filter(m => String(m.course_id) === String(activeCourseId)).map(m => String(m.id)) || []);
   const courseLessons = allDbLessons?.filter(l => courseModuleIds.has(String(l.module_id))) || [];

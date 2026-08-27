@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Loader2 } from "lucide-react";
+import { useTransition } from "react";
 
 interface Course {
   id: string;
@@ -16,6 +17,7 @@ interface CourseSelectorProps {
 export default function CourseSelector({ courses, activeCourseId }: CourseSelectorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const handleCourseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const courseId = e.target.value;
@@ -26,19 +28,27 @@ export default function CourseSelector({ courses, activeCourseId }: CourseSelect
     } else {
       params.delete("course");
     }
-    router.push(`?${params.toString()}`);
-    router.refresh();
+    
+    startTransition(() => {
+      router.push(`?${params.toString()}`);
+      router.refresh();
+    });
   };
 
   return (
     <div className="relative flex items-center min-w-[200px]">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <BookOpen className="h-4 w-4 text-slate-400" />
+        {isPending ? (
+          <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+        ) : (
+          <BookOpen className="h-4 w-4 text-slate-400" />
+        )}
       </div>
       <select
         value={activeCourseId}
         onChange={handleCourseChange}
-        className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl leading-5 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-700 dark:text-slate-300 appearance-none cursor-pointer transition-colors"
+        disabled={isPending}
+        className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl leading-5 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-700 dark:text-slate-300 appearance-none cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
       >
         {courses.map((course) => (
           <option key={course.id} value={course.id.toString()}>
