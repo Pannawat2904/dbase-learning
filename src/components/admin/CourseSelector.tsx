@@ -26,8 +26,8 @@ export default function CourseSelector({ courses, activeCourseId }: CourseSelect
     } else {
       params.delete("course");
     }
-    
     router.push(`?${params.toString()}`);
+    router.refresh();
   };
 
   return (

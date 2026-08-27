@@ -21,8 +21,11 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
   const activeCourseId = searchParams.course || courses[0]?.id?.toString();
   
   // Calculate total lessons accurately from lessons table
-  const { data: allDbLessons } = await supabase.from('lessons').select('id, course_id');
-  const courseLessons = allDbLessons?.filter(l => String(l.course_id) === String(activeCourseId)) || [];
+  const { data: allDbModules } = await supabase.from('modules').select('id, course_id');
+  const { data: allDbLessons } = await supabase.from('lessons').select('id, module_id');
+  
+  const courseModuleIds = new Set(allDbModules?.filter(m => String(m.course_id) === String(activeCourseId)).map(m => String(m.id)) || []);
+  const courseLessons = allDbLessons?.filter(l => courseModuleIds.has(String(l.module_id))) || [];
   const courseLessonIds = new Set(courseLessons.map(l => String(l.id)));
   const totalLessons = courseLessons.length || 1;
 
