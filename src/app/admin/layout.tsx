@@ -55,6 +55,7 @@ export default function AdminLayout({
   const [teacherName, setTeacherName] = useState('ผู้สอน');
   const [teacherAvatar, setTeacherAvatar] = useState<string | undefined>(undefined);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [pendingGradingCount, setPendingGradingCount] = useState<number>(0);
 
   const fetchUnreadCount = async () => {
     try {
@@ -62,6 +63,7 @@ export default function AdminLayout({
       if (res.ok) {
         const data = await res.json();
         setUnreadCount(Number(data.unreadCount || 0));
+        setPendingGradingCount(Number(data.totalPendingGrading || 0));
       }
     } catch (e) {
       console.warn("Error fetching unread messages count:", e);
@@ -99,14 +101,18 @@ export default function AdminLayout({
     const channel = supabase.channel('admin_messages_badge_realtime')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages'
-        },
-        () => {
-          fetchUnreadCount();
-        }
+        { event: '*', schema: 'public', table: 'messages' },
+        () => fetchUnreadCount()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'student_assignments' },
+        () => fetchUnreadCount()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'student_scores' },
+        () => fetchUnreadCount()
       )
       .subscribe();
 
@@ -167,7 +173,7 @@ export default function AdminLayout({
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center relative">
             <Database className="w-4 h-4 text-white" />
-            {unreadCount > 0 && (
+            {(unreadCount > 0 || pendingGradingCount > 0) && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
             )}
           </div>
@@ -175,7 +181,7 @@ export default function AdminLayout({
         </div>
         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-600 dark:text-slate-300 relative">
           {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          {unreadCount > 0 && (
+          {(unreadCount > 0 || pendingGradingCount > 0) && (
             <span className="absolute top-1.5 right-1.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse"></span>
           )}
         </button>
@@ -193,7 +199,7 @@ export default function AdminLayout({
           <div className="p-6 hidden md:flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 relative">
               <Database className="w-5 h-5 text-white" />
-              {unreadCount > 0 && (
+              {(unreadCount > 0 || pendingGradingCount > 0) && (
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-slate-900"></span>
@@ -211,6 +217,7 @@ export default function AdminLayout({
             {navItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
               const isInbox = item.name === "กล่องข้อความ";
+              const isGrading = item.name === "ตรวจงานและข้อสอบ";
               return (
                 <Link
                   key={item.name}
@@ -232,6 +239,12 @@ export default function AdminLayout({
                   {isInbox && unreadCount > 0 && (
                     <span className="inline-flex items-center justify-center bg-red-500 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-full min-w-[22px] h-5 text-center shadow-md shadow-red-500/30 animate-pulse">
                       {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                  {/* Pending Grading Badge */}
+                  {isGrading && pendingGradingCount > 0 && (
+                    <span className="inline-flex items-center justify-center bg-amber-500 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-full min-w-[22px] h-5 text-center shadow-md shadow-amber-500/30 animate-pulse">
+                      {pendingGradingCount > 99 ? '99+' : pendingGradingCount}
                     </span>
                   )}
                 </Link>

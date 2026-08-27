@@ -373,6 +373,33 @@ export async function getAdminUnreadMessagesCount(): Promise<number> {
   }
 }
 
+export async function getAdminPendingTasksCount() {
+  try {
+    const supabase = await createClient();
+    
+    const [
+      { count: unreadCount },
+      { count: pendingAssignmentsCount },
+      { count: pendingEssaysCount }
+    ] = await Promise.all([
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('sender_role', 'student').eq('is_read', false),
+      supabase.from('student_assignments').select('*', { count: 'exact', head: true }).is('score', null),
+      supabase.from('student_scores').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+    ]);
+
+    return {
+      unreadMessages: unreadCount || 0,
+      pendingAssignments: pendingAssignmentsCount || 0,
+      pendingEssays: pendingEssaysCount || 0,
+      totalPendingGrading: (pendingAssignmentsCount || 0) + (pendingEssaysCount || 0)
+    };
+  } catch (err) {
+    console.error('Error in getAdminPendingTasksCount:', err);
+    return { unreadMessages: 0, pendingAssignments: 0, pendingEssays: 0, totalPendingGrading: 0 };
+  }
+}
+
+
 // Course Content Management (Modules & Lessons)
 export async function createModule(courseId: string, title: string, orderIndex: number) {
   await requireAdmin();
