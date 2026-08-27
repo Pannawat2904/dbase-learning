@@ -1007,9 +1007,9 @@ export async function resetStudentProgress(studentId: string) {
   const supabase = await createClient();
   
   // Delete all progress
-  const { error: progError } = await supabase.from('student_progress').delete().eq('user_id', studentId);
+  const { error: progError } = await supabase.from('student_progress').delete().eq('student_id', studentId);
   // Delete all exam scores
-  const { error: examError } = await supabase.from('exam_scores').delete().eq('student_id', studentId);
+  const { error: examError } = await supabase.from('student_scores').delete().eq('student_id', studentId);
   // Delete all assignments
   const { error: assignError } = await supabase.from('student_assignments').delete().eq('student_id', studentId);
   
