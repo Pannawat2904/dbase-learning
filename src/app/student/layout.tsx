@@ -8,6 +8,7 @@ import NotificationBell from "@/components/student/NotificationBell";
 import { createClient } from '@/utils/supabase/client';
 import { useTheme } from "next-themes";
 import ChatbotWidget from "@/components/student/ChatbotWidget";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 function GeminiRobotAssistantIcon({ className = "w-16 h-16" }: { className?: string }) {
   return (
@@ -130,6 +131,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     await supabase.auth.signOut();
     window.location.href = '/login';
   };
+
+  useIdleTimeout({
+    timeoutMs: 60 * 60 * 1000, // 1 hour
+    onIdle: () => {
+      console.log('Idle timeout reached, logging out student...');
+      handleLogout();
+    }
+  });
 
   // Handle scroll for Topbar blur effect
   useEffect(() => {

@@ -22,6 +22,7 @@ import {
 import { useState, useEffect } from "react";
 import { logoutTeacher } from "./login/actions";
 import { createClient } from "@/utils/supabase/client";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 function getCookie(name: string) {
   if (typeof document === 'undefined') return undefined;
@@ -117,8 +118,7 @@ export default function AdminLayout({
     };
   }, [pathname]);
 
-  const handleLogout = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doLogout = async () => {
     // Clear all client cookies
     document.cookie = 'teacher_auth=; Max-Age=0; path=/;';
     document.cookie = 'teacher_id=; Max-Age=0; path=/;';
@@ -126,6 +126,19 @@ export default function AdminLayout({
     document.cookie = 'teacher_username=; Max-Age=0; path=/;';
     document.cookie = 'teacher_avatar=; Max-Age=0; path=/;';
     await logoutTeacher();
+  };
+
+  useIdleTimeout({
+    timeoutMs: 60 * 60 * 1000, // 1 hour
+    onIdle: () => {
+      console.log('Idle timeout reached, logging out admin...');
+      doLogout();
+    }
+  });
+
+  const handleLogout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doLogout();
   };
 
   const navItems = [
