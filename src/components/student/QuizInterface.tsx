@@ -79,6 +79,7 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
             .select('*')
             .eq('student_id', uid)
             .eq('lesson_id', lesson.id.toString())
+            .neq('exam_type', 'access_log')
             .order('created_at', { ascending: false });
 
           if (scores && scores.length > 0) {

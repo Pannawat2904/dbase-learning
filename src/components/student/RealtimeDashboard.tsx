@@ -90,7 +90,7 @@ export default function RealtimeDashboard({
     // Fetch global progress (progress + scores + assignments)
     const [pRes, sRes, aRes] = await Promise.all([
       supabase.from("student_lesson_progress").select("lesson_id").eq("student_id", userId),
-      supabase.from("student_scores").select("lesson_id, score, total_score, exam_type, status").eq("student_id", userId),
+      supabase.from("student_scores").select("lesson_id, score, total_score, exam_type, status").eq("student_id", userId).neq("exam_type", "access_log"),
       supabase.from("student_assignments").select("lesson_id").eq("student_id", userId)
     ]);
 
