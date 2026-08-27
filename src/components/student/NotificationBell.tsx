@@ -50,10 +50,10 @@ export default function NotificationBell() {
       // Fetch automated grade notifications from chat
       if (user) {
         const { data: chatData } = await supabase
-          .from("chat_messages")
+          .from("messages")
           .select("id, message, created_at")
-          .eq("receiver_id", user.id)
-          .eq("sender_id", "admin")
+          .eq("student_id", user.id)
+          .eq("sender_role", "admin")
           .like("message", "แจ้งเตือนอัตโนมัติ%")
           .order("created_at", { ascending: false })
           .limit(10);

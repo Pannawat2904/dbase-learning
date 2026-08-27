@@ -821,12 +821,12 @@ export async function updateEssayScore(id: string, additionalScore: number) {
     return null;
   }
   
-  // Send notification message to student
+  // Send notification to student
   if (scoreData.student_id) {
     const examName = scoreData.exam_type === 'pre-test' ? 'แบบทดสอบก่อนเรียน' : 
                      scoreData.exam_type === 'post-test' ? 'แบบทดสอบหลังเรียน' : 'แบบฝึกหัด/ข้อสอบ';
     await sendChatMessage(
-      scoreData.student_id, 
+      scoreData.student_id,
       'admin', 
       `แจ้งเตือนอัตโนมัติ: คุณครูได้ตรวจให้คะแนนข้อเขียนของคุณใน "${examName}" เรียบร้อยแล้ว ได้คะแนนรวม ${newScore} คะแนนครับ สามารถเข้าไปดูรายละเอียดได้เลยครับ`
     );
@@ -1021,6 +1021,14 @@ export async function getPendingAssignments() {
 export async function gradeAssignment(assignmentId: string, score: number, teacherComment: string = '') {
   await requireAdmin();
   const supabase = await createClient();
+  
+  // Get student_id to send notification later
+  const { data: assignmentData } = await supabase
+    .from('student_assignments')
+    .select('student_id')
+    .eq('id', assignmentId)
+    .single();
+
   const { error } = await supabase
     .from('student_assignments')
     .update({ score, teacher_comment: teacherComment })
@@ -1030,6 +1038,16 @@ export async function gradeAssignment(assignmentId: string, score: number, teach
     console.error('Error grading assignment:', error);
     return false;
   }
+  
+  // Send notification to student
+  if (assignmentData?.student_id) {
+    await supabase.from('messages').insert([{
+      student_id: assignmentData.student_id,
+      sender_role: 'admin',
+      message: `แจ้งเตือนอัตโนมัติ: ครูได้ตรวจและให้คะแนนงานปฏิบัติของคุณแล้ว ได้คะแนน ${score} คะแนน`
+    }]);
+  }
+  
   return true;
 }
 
