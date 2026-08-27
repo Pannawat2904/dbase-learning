@@ -270,7 +270,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 px-4 py-8 pb-40 md:p-8 mt-2 md:mt-4">
+        <main className={`flex-1 ${pathname === '/student/scores' ? 'p-0 pb-20 md:pb-0' : 'px-4 py-8 pb-40 md:p-8 mt-2 md:mt-4'}`}>
           {children}
         </main>
       </div>
