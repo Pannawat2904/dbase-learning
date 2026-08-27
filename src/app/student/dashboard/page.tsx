@@ -17,57 +17,35 @@ export default async function StudentDashboard() {
 
   const courses = await getCourses();
   
-  // Concurrently fetch curriculum for all courses to calculate global stats
-  const allCoursesCurriculum: any[] = [];
-  let latestCourse: any = null;
+  // Sort courses by title so "บทเรียนที่ 6" comes before "บทเรียนที่ 7"
+  const ascCourses = [...(courses || [])].sort((a, b) => 
+    (a.title || '').localeCompare(b.title || '', 'th', { numeric: true })
+  );
   
-  if (courses && courses.length > 0) {
-    const curricula = await Promise.all(
-      courses.map((c: any) => getCourseWithCurriculum(c.id.toString()))
-    );
-
-    curricula.forEach((curriculum, idx) => {
-      if (curriculum) {
-        allCoursesCurriculum.push({
-          courseId: courses[idx].id.toString(),
-          modules: curriculum.modules || []
-        });
-        if (!latestCourse) {
-          latestCourse = curriculum;
-        }
-      }
-    });
-  }
-
   let completedLessonIds: string[] = [];
   let scoresData: any[] = [];
+  const allCoursesCurriculum: any[] = [];
+  let latestCourse: any = null;
 
   if (user) {
-    // Concurrently fetch global progress (progress + scores + assignments + scoresData)
-    const [pRes, sRes, aRes, fetchedScores] = await Promise.all([
+    // 1. Fetch user progress globally
+    const [pRes, sRes, aRes] = await Promise.all([
       supabase.from('student_lesson_progress').select('lesson_id').eq('student_id', user.id),
       supabase.from('student_scores').select('lesson_id, score, total_score, exam_type, status').eq('student_id', user.id).neq('exam_type', 'access_log'),
-      supabase.from('student_assignments').select('lesson_id').eq('student_id', user.id),
-      latestCourse ? getStudentScores(user.id, latestCourse.id.toString()) : Promise.resolve([])
+      supabase.from('student_assignments').select('lesson_id').eq('student_id', user.id)
     ]);
 
     const failedPostTestIds = new Set<string>();
     const passedScoresIds: string[] = [];
-
     (sRes.data || []).forEach((s: any) => {
       const lid = String(s.lesson_id);
       const isPost = s.exam_type === 'post-test';
       const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
       if (isPost) {
-        if (pct >= 50 && s.status !== 'pending') {
-          passedScoresIds.push(lid);
-        } else {
-          failedPostTestIds.add(lid);
-        }
+        if (pct >= 50 && s.status !== 'pending') passedScoresIds.push(lid);
+        else failedPostTestIds.add(lid);
       } else {
-        if (s.status !== 'pending') {
-          passedScoresIds.push(lid);
-        }
+        if (s.status !== 'pending') passedScoresIds.push(lid);
       }
     });
 
@@ -78,7 +56,40 @@ export default async function StudentDashboard() {
     ].filter(Boolean));
 
     completedLessonIds = Array.from(combinedSet);
-    scoresData = fetchedScores || [];
+  }
+
+  if (ascCourses.length > 0) {
+    const curricula = await Promise.all(
+      ascCourses.map((c: any) => getCourseWithCurriculum(c.id.toString()))
+    );
+
+    curricula.forEach((curriculum, idx) => {
+      if (curriculum) {
+        allCoursesCurriculum.push({
+          courseId: ascCourses[idx].id.toString(),
+          modules: curriculum.modules || []
+        });
+
+        if (!latestCourse) {
+          // Check if this course is fully completed
+          const allLessonIds = (curriculum.modules || []).flatMap((m: any) => (m.lessons || []).map((l: any) => String(l.id)));
+          const isCompleted = allLessonIds.length > 0 && allLessonIds.every((id: string) => completedLessonIds.includes(id));
+          
+          if (!isCompleted) {
+            latestCourse = curriculum;
+          }
+        }
+      }
+    });
+
+    // Fallback if all are completed or no modules found
+    if (!latestCourse) {
+      latestCourse = curricula[curricula.length - 1];
+    }
+  }
+
+  if (user && latestCourse) {
+    scoresData = await getStudentScores(user.id, latestCourse.id.toString()) || [];
   }
 
   return (
