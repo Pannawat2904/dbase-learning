@@ -31,6 +31,7 @@ export default async function CertificatesPage() {
         .from('student_scores')
         .select('*')
         .eq('student_id', user.id)
+        .neq('exam_type', 'access_log')
         .order('created_at', { ascending: false });
 
       if (postTestScores && postTestScores.length > 0 && allModules.length > 0) {

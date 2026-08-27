@@ -723,7 +723,12 @@ export async function saveExamScore(
 
 export async function getStudentScores(studentId: string, courseId?: string) {
   const supabase = await createClient();
-  let query = supabase.from('student_scores').select('*').eq('student_id', studentId).order('created_at', { ascending: true });
+  let query = supabase
+    .from('student_scores')
+    .select('*')
+    .eq('student_id', studentId)
+    .neq('exam_type', 'access_log')
+    .order('created_at', { ascending: true });
   
   if (courseId) {
     query = query.eq('course_id', courseId);
