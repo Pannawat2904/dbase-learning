@@ -29,7 +29,17 @@ function getCookie(name: string) {
   const parts = value.split(`; ${name}=`);
   if (parts.length === 2) {
     const raw = parts.pop()?.split(';').shift();
-    return raw ? decodeURIComponent(raw) : undefined;
+    if (!raw) return undefined;
+    try {
+      let decoded = decodeURIComponent(raw);
+      // Handle potential double-encoding from Next.js cookie setter
+      if (decoded.includes('%')) {
+        decoded = decodeURIComponent(decoded);
+      }
+      return decoded;
+    } catch (e) {
+      return raw;
+    }
   }
   return undefined;
 }

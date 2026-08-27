@@ -575,9 +575,12 @@ export async function getCurrentTeacher() {
   }
 
   const nameRaw = cookieStore.get('teacher_name')?.value;
-  const name = nameRaw ? decodeURIComponent(nameRaw) : 'ผู้ดูแลระบบ';
+  let name = nameRaw ? decodeURIComponent(nameRaw) : 'ผู้ดูแลระบบ';
+  if (name.includes('%')) name = decodeURIComponent(name);
+  
   const avatarRaw = cookieStore.get('teacher_avatar')?.value;
-  const avatar = avatarRaw ? decodeURIComponent(avatarRaw) : '';
+  let avatar = avatarRaw ? decodeURIComponent(avatarRaw) : '';
+  if (avatar.includes('%')) avatar = decodeURIComponent(avatar);
   const username = cookieStore.get('teacher_username')?.value || 'admin';
 
   return {
