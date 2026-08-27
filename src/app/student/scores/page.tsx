@@ -7,13 +7,13 @@ export default function StudentScoresPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] md:h-[calc(100vh-40px)] -mt-4 -mx-4 md:-mx-8">
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+    <div className="flex flex-col h-[calc(100vh-180px)] md:h-[calc(100vh-140px)] bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-3 md:px-6 md:py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
+          <h1 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
             ตรวจสอบคะแนนรายบุคคล
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
             ดูผลการเรียนและคะแนนเก็บของคุณ
           </p>
         </div>

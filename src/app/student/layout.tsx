@@ -153,10 +153,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { name: "ภาพรวมการเรียน", href: "/student/dashboard", icon: LayoutDashboard },
     { name: "บทเรียนทั้งหมด", href: "/student/courses", icon: BookOpen },
     { name: "กล่องข้อความ", href: "/student/messages", icon: MessageSquare },
-    { name: "ตรวจสอบคะแนน", href: "/student/scores", icon: Target },
     { name: "ใบรับรอง", href: "/student/certificates", icon: GraduationCap },
     { name: "ประเมินความพึงพอใจ", href: "/student/evaluation", icon: Star },
     { name: "Gemini AI", href: "https://gemini.google.com/gem/15dbYiItlbBm0ftGwv7afznqbZbTypamH?usp=sharing", icon: Bot, external: true },
+    { name: "ตรวจสอบคะแนน", href: "/student/scores", icon: Target },
     { name: "โปรไฟล์", href: "/student/profile", icon: User },
   ];
 
