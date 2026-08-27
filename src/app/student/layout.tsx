@@ -282,11 +282,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             .map((item) => {
               const isActive = pathname === item.href || (pathname.startsWith('/student/learn') && item.href === '/student/courses');
               
-              // Shorten names for mobile
               let shortName = item.name;
               if (item.name === "ภาพรวมการเรียน") shortName = "ภาพรวม";
               if (item.name === "บทเรียนทั้งหมด") shortName = "บทเรียน";
               if (item.name === "กล่องข้อความ") shortName = "ข้อความ";
+              if (item.name === "ประเมินความพึงพอใจ") shortName = "ประเมิน";
 
               return (
                 <Link
