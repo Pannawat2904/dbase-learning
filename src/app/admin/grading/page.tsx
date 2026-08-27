@@ -269,7 +269,7 @@ export default function GradingPage() {
                   </div>
                   <div className="text-right">
                     <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                      {selectedExam.score + Object.values(scores).reduce((a, b) => a + b, 0)}
+                      {selectedExam.score + Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0)}
                     </span>
                     <span className="text-slate-500"> / {selectedExam.total_score}</span>
                   </div>
