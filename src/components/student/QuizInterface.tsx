@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { HelpCircle, Clock, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft, RotateCcw, MessageSquare, Award, Lock, ShieldAlert, ShieldX } from "lucide-react";
 import { saveExamScore, issueCertificate } from "@/utils/supabase/queries";
@@ -202,6 +202,48 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
       return nextList;
     });
   };
+
+  // Screen Wake Lock API to prevent screen from sleeping
+  const wakeLockRef = useRef<any>(null);
+  
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && hasStarted && !isFinished && !isExamLocked) {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          console.warn('Wake Lock request failed:', err);
+        }
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLockRef.current !== null) {
+        try {
+          await wakeLockRef.current.release();
+          wakeLockRef.current = null;
+        } catch (err) {}
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && hasStarted && !isFinished && !isExamLocked) {
+        requestWakeLock();
+      }
+    };
+
+    if (hasStarted && !isFinished && !isExamLocked) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [hasStarted, isFinished, isExamLocked]);
 
   // Anti-cheating event listeners
   useEffect(() => {
