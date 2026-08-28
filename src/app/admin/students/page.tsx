@@ -93,8 +93,8 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
     ].filter(Boolean)); // filter out null/undefined
     
     const isPostTestPassed = postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false;
-    const studentCertificate = allCertificates?.find((c: any) => c.student_id === student.id && String(c.course_id) === String(activeCourseId));
-    const hasCertificate = !!studentCertificate;
+    const studentCertificates = allCertificates?.filter((c: any) => c.student_id === student.id && String(c.course_id) === String(activeCourseId)) || [];
+    const hasCertificate = studentCertificates.length > 0;
     
     // Check assignments
     const courseAssignments = courseLessons.filter(l => l.type === 'assignment');
@@ -167,7 +167,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       avatar_url: student.avatar_url || "",
       studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : "",
       hasCertificate: hasCertificate,
-      certificateId: studentCertificate?.id || null
+      certificates: studentCertificates
     };
   }) || [];
 

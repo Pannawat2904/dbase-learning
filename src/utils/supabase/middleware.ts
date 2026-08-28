@@ -36,6 +36,11 @@ export async function updateSession(request: NextRequest) {
     !user &&
     request.nextUrl.pathname.startsWith('/student')
   ) {
+    // Allow public access to view certificates
+    if (request.nextUrl.pathname.startsWith('/student/certificates/')) {
+      return supabaseResponse
+    }
+    
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

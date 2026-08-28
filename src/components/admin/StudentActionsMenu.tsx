@@ -206,18 +206,19 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                 ดูรายละเอียดความคืบหน้า
               </button>
               
-              {student.hasCertificate && student.certificateId && (
+              {student.certificates?.map((cert: any) => (
                 <a 
-                  href={`/student/certificates/${student.certificateId}`} 
+                  key={cert.id}
+                  href={`/student/certificates/${cert.id}`} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   onClick={() => setIsOpen(false)}
                   className="w-full text-left px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center gap-3 transition-colors whitespace-nowrap"
                 >
                   <Award className="w-4 h-4 shrink-0" />
-                  ดูเกียรติบัตรนักเรียน
+                  ดูเกียรติบัตร {cert.module?.title ? `(${cert.module.title})` : '(รวมทั้งหมด)'}
                 </a>
-              )}
+              ))}
               {student.preTestId && student.preTestStatus === 'disqualified_cheating' && (
                 <button onClick={() => handleUnlockScore('pre')} className="w-full text-left px-4 py-2.5 text-sm text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 flex items-center gap-3 transition-colors whitespace-nowrap">
                   <LockOpen className="w-4 h-4 shrink-0" />

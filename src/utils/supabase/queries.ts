@@ -875,7 +875,12 @@ export async function getAllCertificates() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('certificates')
-    .select('*')
+    .select(`
+      *,
+      module:modules (
+        title
+      )
+    `)
     .order('issued_at', { ascending: false });
     
   if (error) {
