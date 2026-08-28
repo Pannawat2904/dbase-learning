@@ -995,6 +995,9 @@ export async function getStudentAssignments(studentId: string, lessonId?: string
   let query = supabase.from('student_assignments').select('*').eq('student_id', studentId);
   if (lessonId) query = query.eq('lesson_id', lessonId);
   
+  // Always order by the latest submission first
+  query = query.order('submitted_at', { ascending: false });
+  
   const { data, error } = await query;
   if (error) {
     console.error('Error fetching assignments:', error);
