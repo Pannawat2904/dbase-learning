@@ -24,8 +24,8 @@ BEGIN
     CREATE POLICY "Students can insert own exam violations"
       ON public.exam_violations
       FOR INSERT
-      TO authenticated
-      WITH CHECK (student_id = auth.uid());
+      TO anon, authenticated
+      WITH CHECK (true);
   END IF;
 END $$;
 
