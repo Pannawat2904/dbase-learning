@@ -196,11 +196,18 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
   let filteredStudents = displayStudents;
   
   if (searchQuery) {
-    filteredStudents = displayStudents.filter((s: any) => 
-      s.name.toLowerCase().includes(searchQuery) ||
-      s.email.toLowerCase().includes(searchQuery) ||
-      s.studentIdNum.includes(searchQuery)
-    );
+    const isThreeDigits = /^\d{3}$/.test(searchQuery);
+    
+    filteredStudents = displayStudents.filter((s: any) => {
+      if (isThreeDigits) {
+        return (s.name || "").startsWith(searchQuery) || (s.studentIdNum || "").endsWith(searchQuery);
+      }
+      return (
+        (s.name || "").toLowerCase().includes(searchQuery) ||
+        (s.email || "").toLowerCase().includes(searchQuery) ||
+        (s.studentIdNum || "").includes(searchQuery)
+      );
+    });
   }
 
   // 2. Sorting
