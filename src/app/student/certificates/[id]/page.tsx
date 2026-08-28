@@ -132,7 +132,7 @@ export default async function CertificateViewPage({ params }: { params: Promise<
         >
           <ChevronLeft className="w-5 h-5" /> กลับไปหน้าเกียรติบัตรทั้งหมด
         </Link>
-        <CertificateActions />
+        <CertificateActions studentName={studentName} />
       </div>
 
       <div className="print-wrapper w-full bg-slate-200 dark:bg-slate-900 rounded-3xl p-4 md:p-8 flex items-center md:justify-center overflow-x-auto">
