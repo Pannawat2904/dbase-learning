@@ -6,7 +6,6 @@ import AutoRefresh from "@/components/admin/AutoRefresh";
 import ItemAnalysisReport from "@/components/admin/ItemAnalysisReport";
 import AtRiskStudents from "@/components/admin/AtRiskStudents";
 import AnnouncementManager from "@/components/admin/AnnouncementManager";
-import LiveCheatingAlerts from "@/components/admin/LiveCheatingAlerts";
 
 export default async function AdminDashboard() {
   const [dbStats, currentTeacher] = await Promise.all([
@@ -59,7 +58,6 @@ export default async function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Item Analysis & At-Risk Students (2 columns width) */}
         <div className="lg:col-span-2 space-y-6">
-          <LiveCheatingAlerts />
           <ItemAnalysisReport />
           <AtRiskStudents />
         </div>
