@@ -229,7 +229,7 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                   className="w-full text-left px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center gap-3 transition-colors whitespace-nowrap"
                 >
                   <Award className="w-4 h-4 shrink-0" />
-                  ดูเกียรติบัตร {cert.module?.title ? `(${cert.module.title.split(':')[0]})` : '(รวมทั้งหมด)'}
+                  ดูเกียรติบัตร {cert.module?.title ? `(${cert.module.title.match(/^บท(?:เรียน)?ที่\s*\d+/)?.[0] || cert.module.title.split(':')[0]})` : '(รวมทั้งหมด)'}
                 </a>
               ))}
               {student.preTestId && student.preTestStatus === 'disqualified_cheating' && (
