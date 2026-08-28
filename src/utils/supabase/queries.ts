@@ -1005,6 +1005,15 @@ export async function getStudentAssignments(studentId: string, lessonId?: string
 
 export async function submitAssignment(studentId: string, lessonId: string, fileUrl: string, fileName: string, studentNote: string = '') {
   const supabase = await createClient();
+  
+  // Delete any existing pending assignments for this student and lesson
+  // to avoid duplicate counts in the grading queue
+  await supabase.from('student_assignments')
+    .delete()
+    .eq('student_id', studentId)
+    .eq('lesson_id', lessonId)
+    .is('score', null);
+
   const { error } = await supabase
     .from('student_assignments')
     .insert({
