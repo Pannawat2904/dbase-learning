@@ -1,4 +1,6 @@
-import { Search, User, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Search, User, CheckCircle2, XCircle, Clock, Eye, EyeOff } from "lucide-react";
+import { cookies } from "next/headers";
+import Link from "next/link";
 import { getStudents, getAllStudentScores, getAllStudentProgress, getCourses, getAllStudentAssignments, getAllCertificates } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/server";
 import StudentActionsMenu from "@/components/admin/StudentActionsMenu";
@@ -13,6 +15,17 @@ export const revalidate = 0;
 export default async function AdminStudentsPage(props: { searchParams?: any }) {
   const searchParams = await Promise.resolve(props.searchParams || {});
   const supabase = await createClient();
+  const cookieStore = await cookies();
+  const hiddenStudentsCookie = cookieStore.get('hidden_students')?.value;
+  let hiddenStudentIds: string[] = [];
+  if (hiddenStudentsCookie) {
+    try {
+      hiddenStudentIds = JSON.parse(hiddenStudentsCookie);
+    } catch (e) {
+      hiddenStudentIds = [];
+    }
+  }
+  const showHidden = searchParams.showHidden === 'true';
   const [
     dbStudents,
     allScores,
@@ -167,16 +180,24 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       avatar_url: student.avatar_url || "",
       studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : "",
       hasCertificate: hasCertificate,
-      certificates: studentCertificates
+      hasCertificate: hasCertificate,
+      certificates: studentCertificates,
+      isHidden: hiddenStudentIds.includes(student.id)
     };
   }) || [];
 
+  // Filter out hidden students if showHidden is false
+  let displayStudents = students;
+  if (!showHidden) {
+    displayStudents = students.filter((s: any) => !s.isHidden);
+  }
+
   // 1. Search Filter
   const searchQuery = (searchParams.q || "").toLowerCase();
-  let filteredStudents = students;
+  let filteredStudents = displayStudents;
   
   if (searchQuery) {
-    filteredStudents = students.filter(s => 
+    filteredStudents = displayStudents.filter((s: any) => 
       s.name.toLowerCase().includes(searchQuery) ||
       s.email.toLowerCase().includes(searchQuery) ||
       s.studentIdNum.includes(searchQuery)
@@ -219,6 +240,25 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
           <p className="text-slate-500 dark:text-slate-400 mt-1">ติดตามความก้าวหน้าและผลคะแนนของผู้เรียนแบบ Real-time</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href={`/admin/students?${new URLSearchParams({
+              ...(searchParams as any),
+              showHidden: showHidden ? 'false' : 'true'
+            }).toString()}`}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          >
+            {showHidden ? (
+              <>
+                <EyeOff className="w-4 h-4" />
+                ซ่อนบัญชีที่ถูกปิดบัง
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" />
+                แสดงบัญชีที่ถูกปิดบัง
+              </>
+            )}
+          </Link>
           <CourseSelector courses={courses} activeCourseId={activeCourseId} />
           <ExportExcelButton students={students} />
         </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, BarChart, BookOpen, Send, RotateCcw, Trash2, X, Check, LockOpen, ShieldAlert, Award } from "lucide-react";
+import { MoreHorizontal, BarChart, BookOpen, Send, RotateCcw, Trash2, X, Check, LockOpen, ShieldAlert, Award, Eye, EyeOff } from "lucide-react";
 import { sendChatMessage, deleteExamScore, resetStudentProgress, deleteStudentProfile, resetStudentAssignments, unlockExamScore, getStudentExamViolations } from "@/utils/supabase/queries";
 import { VIOLATION_TYPE_CONFIG, type ViolationType } from "@/utils/exam-integrity";
+import { toggleHiddenStudent } from "@/app/admin/students/actions";
 import { useRouter } from "next/navigation";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { toast } from "sonner";
@@ -182,6 +183,18 @@ export default function StudentActionsMenu({ student }: { student: any }) {
     }
   };
 
+  const handleToggleHide = async () => {
+    setIsOpen(false);
+    toast.promise(
+      toggleHiddenStudent(student.id, student.isHidden),
+      {
+        loading: student.isHidden ? "กำลังเลิกซ่อนนักเรียน..." : "กำลังซ่อนนักเรียน...",
+        success: student.isHidden ? "เลิกซ่อนนักเรียนสำเร็จ" : "ซ่อนนักเรียนสำเร็จ",
+        error: "เกิดข้อผิดพลาด กรุณาลองใหม่"
+      }
+    );
+  };
+
   return (
     <>
       <div className="relative" ref={menuRef}>
@@ -255,6 +268,15 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                 <Send className="w-4 h-4 text-emerald-500 shrink-0" />
                 ส่งข้อความ / แจ้งเตือน
               </button>
+              
+              <button 
+                onClick={handleToggleHide}
+                className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-colors whitespace-nowrap"
+              >
+                {student.isHidden ? <Eye className="w-4 h-4 shrink-0 text-slate-500" /> : <EyeOff className="w-4 h-4 shrink-0 text-slate-500" />}
+                {student.isHidden ? "เลิกซ่อนบัญชีนักเรียนนี้" : "ซ่อนบัญชีนักเรียนนี้"}
+              </button>
+
               <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
               <button 
                 onClick={handleResetAssignments}
