@@ -1,5 +1,5 @@
 import { Search, User, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { getStudents, getAllStudentScores, getAllStudentProgress, getCourses, getAllStudentAssignments } from "@/utils/supabase/queries";
+import { getStudents, getAllStudentScores, getAllStudentProgress, getCourses, getAllStudentAssignments, getAllCertificates } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/server";
 import StudentActionsMenu from "@/components/admin/StudentActionsMenu";
 import AutoRefresh from "@/components/admin/AutoRefresh";
@@ -19,6 +19,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
     allProgress,
     allAssignments,
     courses,
+    allCertificates,
     { data: allDbModules },
     { data: allDbLessons }
   ] = await Promise.all([
@@ -27,6 +28,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
     getAllStudentProgress(),
     getAllStudentAssignments(),
     getCourses(),
+    getAllCertificates(),
     supabase.from('modules').select('id, course_id'),
     supabase.from('lessons').select('id, module_id')
   ]);
@@ -90,7 +92,16 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => String(a.lesson_id))
     ].filter(Boolean)); // filter out null/undefined
     
-    const progress = Math.min(100, Math.round((studentCompletedLessonsSet.size / totalLessons) * 100));
+    const isPostTestPassed = postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false;
+    const studentCertificate = allCertificates?.find((c: any) => c.student_id === student.id && String(c.course_id) === String(activeCourseId));
+    const hasCertificate = !!studentCertificate;
+    
+    let calculatedProgress = Math.round((studentCompletedLessonsSet.size / totalLessons) * 100);
+    // If they have a certificate OR passed the post-test, they are effectively 100% complete
+    if (hasCertificate || isPostTestPassed) {
+      calculatedProgress = 100;
+    }
+    const progress = Math.min(100, calculatedProgress);
     
     // Calculate last active & real-time status
     let lastActive = "ยังไม่เคยเข้าเรียน";
@@ -104,8 +115,6 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => new Date(a.created_at).getTime())
     ].filter(Boolean);
     
-    const isPostTestPassed = postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false;
-
     if (allActivityDates.length > 0) {
       const maxTime = Math.max(...allActivityDates);
       const maxDate = new Date(maxTime);
@@ -140,13 +149,17 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       statusColor,
       preTest: preTestScore ? `${preTestScore.score}/${preTestScore.total_score}` : "-",
       preTestId: preTestScore?.lesson_id,
+      preTestStatus: preTestScore?.status,
       postTest: postTestScore ? `${postTestScore.score}/${postTestScore.total_score}` : "-",
       postTestId: postTestScore?.lesson_id,
-      postTestPassed: postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false,
+      postTestStatus: postTestScore?.status,
+      postTestPassed: isPostTestPassed,
       quiz: quizText,
       assignment: assignmentText,
       avatar_url: student.avatar_url || "",
-      studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : ""
+      studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : "",
+      hasCertificate: hasCertificate,
+      certificateId: studentCertificate?.id || null
     };
   }) || [];
 

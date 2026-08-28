@@ -871,6 +871,20 @@ export async function getAllStudentScores() {
   return data;
 }
 
+export async function getAllCertificates() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('certificates')
+    .select('*')
+    .order('issued_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching all certificates:', error);
+    return [];
+  }
+  return data;
+}
+
 export async function getCertificates(studentId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -945,6 +959,38 @@ export async function deleteExamScore(studentId: string, lessonId: string) {
     return false;
   }
   return true;
+}
+
+export async function unlockExamScore(studentId: string, lessonId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('student_scores')
+    .update({ status: 'in_progress' })
+    .eq('student_id', studentId)
+    .eq('lesson_id', lessonId);
+    
+  if (error) {
+    console.error('Error unlocking exam score:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function getStudentExamViolations(studentId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('exam_violations')
+    .select('*')
+    .eq('student_id', studentId)
+    .order('detected_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching student exam violations:', error);
+    return [];
+  }
+  return data;
 }
 export async function getAllStudentProgress() {
   const supabase = await createClient();

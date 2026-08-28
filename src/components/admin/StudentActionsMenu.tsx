@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, BarChart, BookOpen, Send, RotateCcw, Trash2, X, Check } from "lucide-react";
-import { sendChatMessage, deleteExamScore, resetStudentProgress, deleteStudentProfile, resetStudentAssignments } from "@/utils/supabase/queries";
+import { MoreHorizontal, BarChart, BookOpen, Send, RotateCcw, Trash2, X, Check, LockOpen, ShieldAlert, Award } from "lucide-react";
+import { sendChatMessage, deleteExamScore, resetStudentProgress, deleteStudentProfile, resetStudentAssignments, unlockExamScore, getStudentExamViolations } from "@/utils/supabase/queries";
+import { VIOLATION_TYPE_CONFIG, type ViolationType } from "@/utils/exam-integrity";
 import { useRouter } from "next/navigation";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { toast } from "sonner";
@@ -14,8 +15,25 @@ export default function StudentActionsMenu({ student }: { student: any }) {
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
+  
+  const [violations, setViolations] = useState<any[]>([]);
+  const [isFetchingViolations, setIsFetchingViolations] = useState(false);
+  
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // Fetch violations when progress modal opens
+  useEffect(() => {
+    if (isProgressOpen && student.id) {
+      const fetchViolations = async () => {
+        setIsFetchingViolations(true);
+        const data = await getStudentExamViolations(student.id);
+        setViolations(data || []);
+        setIsFetchingViolations(false);
+      };
+      fetchViolations();
+    }
+  }, [isProgressOpen, student.id]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -67,6 +85,39 @@ export default function StudentActionsMenu({ student }: { student: any }) {
         router.refresh();
       } else {
         toast.error("เกิดข้อผิดพลาดในการลบผลคะแนน");
+      }
+    }
+  };
+
+  const handleUnlockScore = async (examType: 'pre' | 'post') => {
+    const lessonId = examType === 'pre' ? student.preTestId : student.postTestId;
+    if (!lessonId) return;
+    
+    // Check lock count
+    const lessonViolations = await getStudentExamViolations(student.id);
+    const specificViolations = lessonViolations.filter((v: any) => v.lesson_id === lessonId);
+    const lockCount = Math.floor(specificViolations.length / 2);
+    
+    if (lockCount >= 3) {
+      toast.error(`ไม่สามารถปลดล็อกได้! นักเรียนทำผิดกฎและถูกล็อกครบ ${lockCount} ครั้งแล้ว กรุณากด "ให้ทำใหม่" เท่านั้น`, { duration: 8000 });
+      return;
+    }
+    
+    const confirmed = await confirmDialog({
+      title: `ยืนยันการปลดล็อกการสอบ ${examType === 'pre' ? 'Pre-test' : 'Post-test'}`,
+      message: `คุณต้องการปลดล็อกให้นักเรียน ${student.name} ทำข้อสอบต่อใช่หรือไม่? (นักเรียนเคยถูกล็อกไปแล้ว ${lockCount}/3 ครั้ง)`,
+      type: "info",
+      confirmText: "ปลดล็อกให้ทำต่อ"
+    });
+
+    if (confirmed) {
+      const success = await unlockExamScore(student.id, lessonId);
+      if (success) {
+        toast.success("ปลดล็อกการสอบเรียบร้อยแล้ว นักเรียนสามารถทำข้อสอบต่อได้");
+        setIsOpen(false);
+        router.refresh();
+      } else {
+        toast.error("เกิดข้อผิดพลาดในการปลดล็อก");
       }
     }
   };
@@ -154,6 +205,25 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                 <BarChart className="w-4 h-4 text-blue-500 shrink-0" />
                 ดูรายละเอียดความคืบหน้า
               </button>
+              
+              {student.hasCertificate && student.certificateId && (
+                <a 
+                  href={`/student/certificates/${student.certificateId}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center gap-3 transition-colors whitespace-nowrap"
+                >
+                  <Award className="w-4 h-4 shrink-0" />
+                  ดูเกียรติบัตรนักเรียน
+                </a>
+              )}
+              {student.preTestId && student.preTestStatus === 'disqualified_cheating' && (
+                <button onClick={() => handleUnlockScore('pre')} className="w-full text-left px-4 py-2.5 text-sm text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 flex items-center gap-3 transition-colors whitespace-nowrap">
+                  <LockOpen className="w-4 h-4 shrink-0" />
+                  ปลดล็อกสอบ Pre-test
+                </button>
+              )}
               {student.preTestId && (
                 <button onClick={() => handleResetScore('pre')} className="w-full text-left px-4 py-2.5 text-sm text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-3 transition-colors whitespace-nowrap">
                   <RotateCcw className="w-4 h-4 shrink-0" />
@@ -161,6 +231,12 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                 </button>
               )}
               
+              {student.postTestId && student.postTestStatus === 'disqualified_cheating' && (
+                <button onClick={() => handleUnlockScore('post')} className="w-full text-left px-4 py-2.5 text-sm text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 flex items-center gap-3 transition-colors whitespace-nowrap">
+                  <LockOpen className="w-4 h-4 shrink-0" />
+                  ปลดล็อกสอบ Post-test
+                </button>
+              )}
               {student.postTestId && (
                 <button onClick={() => handleResetScore('post')} className="w-full text-left px-4 py-2.5 text-sm text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-3 transition-colors whitespace-nowrap">
                   <RotateCcw className="w-4 h-4 shrink-0" />
@@ -248,6 +324,51 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                   <p className="text-xs text-slate-500 mb-1">Post-test</p>
                   <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{student.postTest}</p>
                 </div>
+              </div>
+              
+              {/* Exam Violations Section */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <ShieldAlert className="w-5 h-5 text-rose-500" />
+                  <h4 className="font-bold text-slate-800 dark:text-white">ประวัติการทุจริตการสอบ</h4>
+                </div>
+                
+                {isFetchingViolations ? (
+                  <div className="text-center py-4">
+                    <div className="w-5 h-5 border-2 border-slate-300 border-t-rose-500 rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-sm text-slate-500">กำลังโหลดข้อมูล...</p>
+                  </div>
+                ) : violations.length > 0 ? (
+                  <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {violations.map((v, idx) => {
+                      const cfg = VIOLATION_TYPE_CONFIG[v.violation_type as ViolationType] || {
+                        label: 'การกระทำผิดปกติ',
+                        color: 'text-slate-600 dark:text-slate-400',
+                        bg: 'bg-slate-100 dark:bg-slate-800'
+                      };
+                      
+                      return (
+                        <div key={idx} className={`p-3 rounded-lg flex flex-col gap-1 text-sm ${cfg.bg}`}>
+                          <div className="flex items-center justify-between">
+                            <span className={`font-semibold ${cfg.color}`}>{cfg.label}</span>
+                            <span className="text-xs text-slate-500 bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded-md">
+                              {new Date(v.detected_at).toLocaleTimeString('th-TH')}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400 flex justify-between">
+                            <span>วันที่: {new Date(v.detected_at).toLocaleDateString('th-TH')}</span>
+                            <span>{v.lesson_id === student.preTestId ? 'Pre-test' : (v.lesson_id === student.postTestId ? 'Post-test' : 'Quiz')}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                    <Check className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">ไม่พบประวัติการทำผิดกฎการสอบ</p>
+                  </div>
+                )}
               </div>
               
               <div className="pt-2">

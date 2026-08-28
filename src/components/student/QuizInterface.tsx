@@ -90,8 +90,14 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
             setExamStatus(latest.status || 'graded');
             if (latest.status === 'disqualified_cheating') {
               setIsExamLocked(true);
+              setIsFinished(true);
+            } else if (latest.status === 'in_progress') {
+              setIsExamLocked(false);
+              setIsFinished(false);
+              setHasStarted(true);
+            } else {
+              setIsFinished(true);
             }
-            setIsFinished(true);
           }
         } catch (err) {
           console.error("Error fetching score attempts:", err);
@@ -130,18 +136,19 @@ export default function QuizInterface({ lesson, courseId, moduleId, existingScor
         logExamViolation(studentId, courseId, lesson.id.toString(), type, currentAttempt);
       }
 
-      if (count === 1) {
-        // ⚠️ Strike 1: Warning modal and alert
+      if (count % 2 === 1) {
+        // ⚠️ Strike 1 (or 3, 5): Warning modal and alert
         setWarningModal({
           isOpen: true,
           label: cfg.label,
           timeStr
         });
-        toast.error(`⚠️ คำเตือนการทุจริตครั้งที่ 1/2: ตรวจพบ ${cfg.label}! หากมีอีก 1 ครั้ง ระบบจะล็อกการสอบทันที!`, {
+        const currentLockCount = Math.floor(count / 2);
+        toast.error(`⚠️ คำเตือนการทุจริต (ล็อกครั้งที่ ${currentLockCount + 1}): ตรวจพบ ${cfg.label}! หากมีอีก 1 ครั้ง ระบบจะล็อกการสอบทันที!`, {
           duration: 8000
         });
-      } else if (count >= 2) {
-        // 🚨 Strike 2: LOCK IMMEDIATELY!
+      } else if (count % 2 === 0 && count > 0) {
+        // 🚨 Strike 2 (or 4, 6): LOCK IMMEDIATELY!
         setIsExamLocked(true);
         setIsFinished(true);
         setExamStatus('disqualified_cheating');
