@@ -26,7 +26,7 @@ export async function getCourses(publishedOnly: boolean = false) {
     .order('created_at', { ascending: false });
 
   if (publishedOnly) {
-    query = query.eq('status', 'published');
+    query = query.eq('status', 'Active');
   }
 
   const { data: courses, error } = await query;
