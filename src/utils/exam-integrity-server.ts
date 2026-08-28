@@ -18,14 +18,26 @@ export async function getExamViolations(limit: number = 500): Promise<ExamViolat
     // Also fetch courses and lessons for readable names
     const { data: coursesData } = await supabase
       .from('courses')
-      .select('id, title, modules');
+      .select(`
+        id, 
+        title,
+        modules (
+          id,
+          title,
+          lessons (
+            id,
+            title
+          )
+        )
+      `);
 
     const courseMap = new Map<string, { title: string; lessons: Map<string, string> }>();
     (coursesData || []).forEach((c: any) => {
-      const parsedModules = Array.isArray(c.modules) ? c.modules : JSON.parse(c.modules || '[]');
       const lessonMap = new Map<string, string>();
-      parsedModules.forEach((m: any) => {
-        (m.lessons || []).forEach((l: any) => {
+      const modules = Array.isArray(c.modules) ? c.modules : [];
+      modules.forEach((m: any) => {
+        const lessons = Array.isArray(m.lessons) ? m.lessons : [];
+        lessons.forEach((l: any) => {
           lessonMap.set(String(l.id), l.title || `บทเรียน #${l.id}`);
         });
       });
