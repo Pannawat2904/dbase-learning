@@ -21,6 +21,9 @@ export default function ExportExcelButton({ students }: ExportExcelButtonProps) 
         "ความก้าวหน้า (%)",
         "แบบทดสอบก่อนเรียน",
         "แบบทดสอบหลังเรียน",
+        "แบบทดสอบย่อย",
+        "ใบงาน",
+        "สถานะ",
         "เข้าเรียนล่าสุด"
       ];
 
@@ -31,6 +34,9 @@ export default function ExportExcelButton({ students }: ExportExcelButtonProps) 
         `"${s.progress}"`,
         `"${s.preTest}"`,
         `"${s.postTest}"`,
+        `"${s.quiz || '-'}"`,
+        `"${s.assignment || '-'}"`,
+        `"${s.statusLabel || '-'}"`,
         `"${s.lastActive}"`
       ]);
 
