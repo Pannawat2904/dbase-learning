@@ -12,9 +12,9 @@ async function requireAdmin() {
   }
 }
 
-export async function getCourses() {
+export async function getCourses(publishedOnly: boolean = false) {
   const supabase = await createClient();
-  const { data: courses, error } = await supabase
+  let query = supabase
     .from('courses')
     .select(`
       *,
@@ -24,6 +24,12 @@ export async function getCourses() {
       )
     `)
     .order('created_at', { ascending: false });
+
+  if (publishedOnly) {
+    query = query.eq('status', 'published');
+  }
+
+  const { data: courses, error } = await query;
 
   if (error || !courses) {
     console.error('Error fetching courses:', error);

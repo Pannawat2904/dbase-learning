@@ -20,7 +20,7 @@ export default function CourseCatalog() {
 
   useEffect(() => {
     async function fetchData() {
-      const data = await getCourses();
+      const data = await getCourses(true);
       
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();

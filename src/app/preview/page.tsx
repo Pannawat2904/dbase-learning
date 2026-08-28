@@ -3,7 +3,7 @@ import { Database, Lock, Play, Search, Sparkles, ArrowLeft, FileText, Code2, Shi
 import { getCourses, getCourseWithCurriculum } from '@/utils/supabase/queries'
 
 export default async function PreviewPage() {
-  const courses = await getCourses();
+  const courses = await getCourses(true);
   
   let previewModules: any[] = [];
   let globalLessonCount = 1;

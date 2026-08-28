@@ -15,7 +15,7 @@ export default async function StudentDashboard() {
     if (data?.full_name) fullName = data.full_name;
   }
 
-  const courses = await getCourses();
+  const courses = await getCourses(true);
   
   // Sort courses by title so "บทเรียนที่ 6" comes before "บทเรียนที่ 7"
   const ascCourses = [...(courses || [])].sort((a, b) => 
