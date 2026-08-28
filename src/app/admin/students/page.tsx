@@ -1,10 +1,11 @@
-import { Search, Filter, CheckCircle2, XCircle, Users, User } from "lucide-react";
+import { Search, User, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { getStudents, getAllStudentScores, getAllStudentProgress, getCourses, getAllStudentAssignments } from "@/utils/supabase/queries";
 import { createClient } from "@/utils/supabase/server";
 import StudentActionsMenu from "@/components/admin/StudentActionsMenu";
 import AutoRefresh from "@/components/admin/AutoRefresh";
 import ExportExcelButton from "@/components/admin/ExportExcelButton";
 import CourseSelector from "@/components/admin/CourseSelector";
+import StudentSearchAndSort from "@/components/admin/StudentSearchAndSort";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -144,9 +145,44 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       postTestPassed: postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false,
       quiz: quizText,
       assignment: assignmentText,
-      avatar_url: student.avatar_url || ""
+      avatar_url: student.avatar_url || "",
+      studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : ""
     };
   }) || [];
+
+  // 1. Search Filter
+  const searchQuery = (searchParams.q || "").toLowerCase();
+  let filteredStudents = students;
+  
+  if (searchQuery) {
+    filteredStudents = students.filter(s => 
+      s.name.toLowerCase().includes(searchQuery) ||
+      s.email.toLowerCase().includes(searchQuery) ||
+      s.studentIdNum.includes(searchQuery)
+    );
+  }
+
+  // 2. Sorting
+  const sortOption = searchParams.sort || "id_asc";
+  
+  filteredStudents.sort((a, b) => {
+    switch (sortOption) {
+      case "id_asc":
+        return a.studentIdNum.localeCompare(b.studentIdNum, 'th', { numeric: true });
+      case "id_desc":
+        return b.studentIdNum.localeCompare(a.studentIdNum, 'th', { numeric: true });
+      case "name_asc":
+        return a.name.localeCompare(b.name, 'th');
+      case "name_desc":
+        return b.name.localeCompare(a.name, 'th');
+      case "progress_desc":
+        return b.progress - a.progress;
+      case "progress_asc":
+        return a.progress - b.progress;
+      default:
+        return a.studentIdNum.localeCompare(b.studentIdNum, 'th', { numeric: true });
+    }
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -168,18 +204,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       </div>
 
       {/* Filters & Search */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-slate-400" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl leading-5 bg-white dark:bg-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-            placeholder="ค้นหาชื่อ, รหัส หรืออีเมลนักเรียน..."
-          />
-        </div>
-      </div>
+      <StudentSearchAndSort defaultQuery={searchQuery} defaultSort={sortOption} />
 
       {/* Students Data Container: Desktop Table + Mobile Cards */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
@@ -201,7 +226,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {students.map((student) => (
+              {filteredStudents.length > 0 ? filteredStudents.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -215,7 +240,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
                       </div>
                       <div>
                         <p className="font-semibold text-slate-800 dark:text-white">{student.name}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">รหัสประจำตัว : {student.email ? student.email.split('@')[0].replace(/\D/g, '') : "ไม่ระบุ"}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">รหัสประจำตัว : {student.studentIdNum || "ไม่ระบุ"}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{student.email}</p>
                       </div>
                     </div>
@@ -262,14 +287,20 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
                     <StudentActionsMenu student={student} />
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
+                    ไม่พบข้อมูลนักเรียนที่ค้นหา
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Mobile Cards View (< md) */}
-        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-          {students.map((student) => (
+        {/* Mobile View (< md) */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredStudents.length > 0 ? filteredStudents.map((student) => (
             <div key={student.id} className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -330,9 +361,12 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
                 <span>เข้าเรียนล่าสุด: {student.lastActive}</span>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+              ไม่พบข้อมูลนักเรียนที่ค้นหา
+            </div>
+          )}
         </div>
-
       </div>
     </div>
   );
