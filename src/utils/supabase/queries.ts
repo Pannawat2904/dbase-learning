@@ -777,8 +777,17 @@ export async function getPendingEssays() {
     return [];
   }
 
+  // Filter out older duplicates: keep only the latest submission per student per lesson
+  const seen = new Set<string>();
+  const filteredScores = scores.filter((item: any) => {
+    const key = `${item.student_id}_${item.lesson_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   // Fetch course and lesson details manually since foreign keys might not exist
-  const result = await Promise.all(scores.map(async (score) => {
+  const result = await Promise.all(filteredScores.map(async (score) => {
     let course = null;
     let lesson = null;
     
@@ -800,33 +809,40 @@ export async function getPendingEssays() {
 export async function updateEssayScore(id: string, additionalScore: number) {
   await requireAdmin();
   const supabase = await createClient();
-  
-  // First get the current score
+
+  // Get current score and student_id
   const { data: scoreData } = await supabase
     .from('student_scores')
-    .select('score, student_id, lesson_id, exam_type')
+    .select('score, total_score, student_id, lesson_id, exam_type')
     .eq('id', id)
     .single();
-    
-  if (!scoreData) return null;
-  
+
+  if (!scoreData) return false;
+
   const newScore = (scoreData.score || 0) + additionalScore;
-  
-  const { data, error } = await supabase
+
+  const { error } = await supabase
     .from('student_scores')
     .update({ 
       score: newScore,
       status: 'graded'
     })
-    .eq('id', id)
-    .select()
-    .single();
-    
+    .eq('id', id);
+
   if (error) {
     console.error('Error updating essay score:', error);
-    return null;
+    return false;
   }
   
+  // Cleanup other pending essays for this student and lesson
+  if (scoreData.student_id && scoreData.lesson_id) {
+    await supabase.from('student_scores')
+      .delete()
+      .eq('student_id', scoreData.student_id)
+      .eq('lesson_id', scoreData.lesson_id)
+      .eq('status', 'pending');
+  }
+
   // Send notification to student
   if (scoreData.student_id) {
     const examName = scoreData.exam_type === 'pre-test' ? 'แบบทดสอบก่อนเรียน' : 
@@ -838,7 +854,7 @@ export async function updateEssayScore(id: string, additionalScore: number) {
     );
   }
   
-  return data;
+  return true;
 }
 
 export async function getAllStudentScores() {
@@ -1017,21 +1033,31 @@ export async function getPendingAssignments() {
     .is('score', null)
     .order('submitted_at', { ascending: false });
 
-  if (error) {
+  if (error || !data) {
     console.error('Error fetching pending assignments:', error);
     return [];
   }
-  return data;
+  
+  // Filter out older duplicates: keep only the latest submission per student per lesson
+  const seen = new Set<string>();
+  const filteredData = data.filter((item: any) => {
+    const key = `${item.student_id}_${item.lesson_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return filteredData;
 }
 
 export async function gradeAssignment(assignmentId: string, score: number, teacherComment: string = '') {
   await requireAdmin();
   const supabase = await createClient();
   
-  // Get student_id to send notification later
+  // Get student_id and lesson_id to send notification later and clean up old submissions
   const { data: assignmentData } = await supabase
     .from('student_assignments')
-    .select('student_id')
+    .select('student_id, lesson_id')
     .eq('id', assignmentId)
     .single();
 
@@ -1043,6 +1069,16 @@ export async function gradeAssignment(assignmentId: string, score: number, teach
   if (error) {
     console.error('Error grading assignment:', error);
     return false;
+  }
+  
+  // Delete any other pending assignments for this student and lesson 
+  // so the teacher doesn't have to grade older duplicates
+  if (assignmentData?.student_id && assignmentData?.lesson_id) {
+    await supabase.from('student_assignments')
+      .delete()
+      .eq('student_id', assignmentData.student_id)
+      .eq('lesson_id', assignmentData.lesson_id)
+      .is('score', null);
   }
   
   // Send notification to student
