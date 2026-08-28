@@ -30,7 +30,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
     getCourses(),
     getAllCertificates(),
     supabase.from('modules').select('id, course_id'),
-    supabase.from('lessons').select('id, module_id')
+    supabase.from('lessons').select('id, module_id, type')
   ]);
   
   const activeCourseId = searchParams.course || courses[0]?.id?.toString();
@@ -96,9 +96,16 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
     const studentCertificate = allCertificates?.find((c: any) => c.student_id === student.id && String(c.course_id) === String(activeCourseId));
     const hasCertificate = !!studentCertificate;
     
+    // Check assignments
+    const courseAssignments = courseLessons.filter(l => l.type === 'assignment');
+    const hasRequiredAssignments = courseAssignments.length > 0;
+    const hasSubmittedAllAssignments = !hasRequiredAssignments || courseAssignments.every(a => 
+      allAssignments.some((sa: any) => sa.student_id === student.id && String(sa.lesson_id) === String(a.id))
+    );
+    
     let calculatedProgress = Math.round((studentCompletedLessonsSet.size / totalLessons) * 100);
-    // If they have a certificate OR passed the post-test, they are effectively 100% complete
-    if (hasCertificate || isPostTestPassed) {
+    // If they have a certificate OR passed the post-test AND submitted assignments, they are effectively 100% complete
+    if (hasCertificate || (isPostTestPassed && hasSubmittedAllAssignments)) {
       calculatedProgress = 100;
     }
     const progress = Math.min(100, calculatedProgress);
@@ -123,7 +130,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
       });
 
-      if (progress >= 100 && (!postTestScore || isPostTestPassed)) {
+      if (progress >= 100 && (!postTestScore || isPostTestPassed) && hasSubmittedAllAssignments) {
         status = "Completed";
         statusLabel = "เรียนจบแล้ว";
         statusColor = "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800";
@@ -156,6 +163,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       postTestPassed: isPostTestPassed,
       quiz: quizText,
       assignment: assignmentText,
+      hasSubmittedAllAssignments,
       avatar_url: student.avatar_url || "",
       studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : "",
       hasCertificate: hasCertificate,
@@ -286,7 +294,9 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{student.quiz}</span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{student.assignment}</span>
+                    <span className={`text-sm font-semibold ${student.assignment === "-" ? "text-red-500" : "text-slate-700 dark:text-slate-200"}`}>
+                      {student.assignment === "-" ? "ยังไม่ส่ง" : student.assignment}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${student.statusColor}`}>
