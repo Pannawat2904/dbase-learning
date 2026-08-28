@@ -180,7 +180,6 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
       avatar_url: student.avatar_url || "",
       studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : "",
       hasCertificate: hasCertificate,
-      hasCertificate: hasCertificate,
       certificates: studentCertificates,
       isHidden: hiddenStudentIds.includes(student.id)
     };
