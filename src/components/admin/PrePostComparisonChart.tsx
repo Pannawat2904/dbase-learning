@@ -168,32 +168,30 @@ export default function PrePostComparisonChart({ courseId }: { courseId?: number
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm w-full flex flex-col h-full">
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-600" />
-            เปรียบเทียบคะแนนก่อน-หลังเรียน
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            คะแนนเฉลี่ยคิดเป็นเปอร์เซ็นต์ จากนักเรียน {stats.studentsCount} คน
+      <div className="flex flex-col gap-1 mb-4">
+        <h2 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-indigo-600" />
+          เปรียบเทียบคะแนน
+        </h2>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-500">
+            เฉลี่ยจาก {stats.studentsCount} คน
           </p>
+          {stats.studentsCount > 0 && (
+            <div className={`px-2 py-1 rounded flex items-center gap-1 text-xs font-bold ${
+              stats.improvement > 0 
+                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' 
+                : stats.improvement < 0 
+                  ? 'bg-red-50 text-red-600 dark:bg-red-900/20'
+                  : 'bg-slate-50 text-slate-600'
+            }`}>
+              {stats.improvement > 0 ? '+' : ''}{stats.improvement}%
+            </div>
+          )}
         </div>
-        
-        {stats.studentsCount > 0 && (
-          <div className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 text-sm font-bold ${
-            stats.improvement > 0 
-              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/30' 
-              : stats.improvement < 0 
-                ? 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/20 dark:border-red-800/30'
-                : 'bg-slate-50 text-slate-600 border border-slate-200'
-          }`}>
-            {stats.improvement > 0 ? <TrendingUp className="w-4 h-4" /> : stats.improvement < 0 ? <TrendingDown className="w-4 h-4" /> : null}
-            {stats.improvement > 0 ? '+' : ''}{stats.improvement}% พัฒนาการ
-          </div>
-        )}
       </div>
 
-      <div className="flex-1 min-h-[250px] w-full">
+      <div className="flex-1 min-h-[200px] w-full">
         {stats.studentsCount === 0 ? (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
             <BarChart3 className="w-12 h-12 mb-2 opacity-20" />
@@ -203,26 +201,26 @@ export default function PrePostComparisonChart({ courseId }: { courseId?: number
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
-              barSize={80}
+              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+              barSize={20}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
               <YAxis 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fill: '#64748b' }}
+                tick={{ fill: '#64748b', fontSize: 11 }}
                 domain={[0, 100]}
                 tickFormatter={(value) => `${value}%`}
               />
               <Tooltip
                 cursor={{ fill: '#f8fafc' }}
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: any) => [`${value}%`, 'คะแนนเฉลี่ย']}
+                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                formatter={(value: any) => [`${value}%`, 'เฉลี่ย']}
               />
-              <Legend wrapperStyle={{ paddingTop: '20px' }} />
-              <Bar dataKey="ก่อนเรียน" fill="#94a3b8" radius={[6, 6, 0, 0]} name="ก่อนเรียน" />
-              <Bar dataKey="หลังเรียน" fill="#3b82f6" radius={[6, 6, 0, 0]} name="หลังเรียน" />
+              <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '11px' }} iconSize={8} />
+              <Bar dataKey="ก่อนเรียน" fill="#94a3b8" radius={[4, 4, 0, 0]} name="ก่อนเรียน" />
+              <Bar dataKey="หลังเรียน" fill="#3b82f6" radius={[4, 4, 0, 0]} name="หลังเรียน" />
             </BarChart>
           </ResponsiveContainer>
         )}

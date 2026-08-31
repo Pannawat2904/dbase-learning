@@ -59,13 +59,16 @@ export default async function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content (2 columns width) */}
         <div className="lg:col-span-2 space-y-6">
-          <PrePostComparisonChart />
           <ItemAnalysisReport />
           <AtRiskStudents />
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+        {/* Right Column */}
+        <div className="space-y-6">
+          <PrePostComparisonChart />
+          
+          {/* Quick Actions */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-6">จัดการด่วน</h2>
           <div className="space-y-3">
             <Link href="/admin/courses" className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors group border border-transparent hover:border-blue-100 dark:hover:border-blue-800/30">
@@ -83,6 +86,7 @@ export default async function AdminDashboard() {
               <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-colors" />
             </Link>
           </div>
+        </div>
         </div>
       </div>
 
