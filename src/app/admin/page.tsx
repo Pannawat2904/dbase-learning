@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getDashboardStats, getCurrentTeacher } from "@/utils/supabase/queries";
 import AutoRefresh from "@/components/admin/AutoRefresh";
 
+import PrePostComparisonChart from "@/components/admin/PrePostComparisonChart";
 import ItemAnalysisReport from "@/components/admin/ItemAnalysisReport";
 import AtRiskStudents from "@/components/admin/AtRiskStudents";
 import AnnouncementManager from "@/components/admin/AnnouncementManager";
@@ -56,8 +57,9 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Item Analysis & At-Risk Students (2 columns width) */}
+        {/* Main Content (2 columns width) */}
         <div className="lg:col-span-2 space-y-6">
+          <PrePostComparisonChart />
           <ItemAnalysisReport />
           <AtRiskStudents />
         </div>
