@@ -313,7 +313,15 @@ export default function AdminEvaluationPage() {
       
       // 3. Respondents Sheet
       if (analytics.respondentsList && analytics.respondentsList.length > 0) {
-        const allItemIds = dims.flatMap((d: any) => (d.items || []).map((item: any) => item.id));
+        const itemColumns: { id: string; label: string }[] = [];
+        dims.forEach((dim: any, dimIdx: number) => {
+          (dim.items || []).forEach((item: any, itemIdx: number) => {
+            itemColumns.push({
+              id: item.id,
+              label: `ข้อ ${dimIdx + 1}.${itemIdx + 1}`
+            });
+          });
+        });
         
         const respondentsData = analytics.respondentsList.map((r: any) => {
           const row: any = {
@@ -325,8 +333,8 @@ export default function AdminEvaluationPage() {
           };
           
           // Add score for each item
-          allItemIds.forEach((itemId: string, index: number) => {
-            row[`ข้อ ${index + 1}`] = r.ratings?.[itemId] || "-";
+          itemColumns.forEach(col => {
+            row[col.label] = r.ratings?.[col.id] || "-";
           });
           
           return row;
