@@ -390,28 +390,28 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
       <div className="bg-slate-50/70 dark:bg-slate-900/50 px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between text-xs">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-2 mb-1">
-              <span className="text-slate-500 font-medium py-1.5 pr-2">เลือกบทเรียน:</span>
-              <button
-                onClick={() => setModuleFilter("all")}
-                className={`px-4 py-1.5 rounded-lg font-bold transition-all text-sm ${moduleFilter === "all" ? "bg-indigo-600 text-white shadow-sm" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
-              >
-                ทุกบทเรียน
-              </button>
-              {availableModules.map(m => {
-                let shortName = m;
-                const match = m.match(/^(บทที่\s*\d+|บทเรียนที่\s*\d+)/);
-                if (match) shortName = match[1];
-                return (
-                  <button
-                    key={m}
-                    onClick={() => setModuleFilter(m)}
-                    className={`px-4 py-1.5 rounded-lg font-bold transition-all text-sm ${moduleFilter === m ? "bg-indigo-600 text-white shadow-sm" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
-                  >
-                    {shortName}
-                  </button>
-                );
-              })}
+            <div className="flex flex-wrap items-center gap-3 mb-1">
+              <span className="text-slate-500 font-medium">เลือกบทเรียน:</span>
+              <div className="relative">
+                <select
+                  value={moduleFilter}
+                  onChange={(e) => setModuleFilter(e.target.value)}
+                  className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer shadow-sm hover:border-indigo-300 dark:hover:border-indigo-700"
+                >
+                  <option value="all">ทุกบทเรียน</option>
+                  {availableModules.map(m => {
+                    let shortName = m;
+                    const match = m.match(/^(บทที่\s*\d+|บทเรียนที่\s*\d+)/);
+                    if (match) shortName = match[1];
+                    return <option key={m} value={m}>{shortName}</option>
+                  })}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
             </div>
             
             <div className="flex gap-2 p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl w-fit">
