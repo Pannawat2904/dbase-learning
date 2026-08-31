@@ -292,16 +292,16 @@ export default function StudentEvaluationPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6 pb-24 animate-in fade-in duration-500">
       {/* Header Banner */}
-      <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-10 text-white shadow-xl shadow-blue-500/15 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-800 via-blue-900 to-slate-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl shadow-slate-900/15 relative overflow-hidden">
         <div className="relative z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/20 backdrop-blur-md text-white mb-3">
             <Star className="w-3.5 h-3.5 fill-white" />
             แบบประเมินความพึงพอใจ
           </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-normal leading-snug mb-3">
             {surveyConfig.title}
           </h1>
-          <p className="text-blue-100 text-sm sm:text-base leading-relaxed max-w-2xl">
+          <p className="text-slate-200 text-sm sm:text-base leading-relaxed max-w-2xl">
             {surveyConfig.description}
           </p>
 
