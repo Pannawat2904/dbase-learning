@@ -34,6 +34,7 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [filterType, setFilterType] = useState<"all" | "quality" | "needs-revision">("all");
+  const [testPhase, setTestPhase] = useState<"all" | "pre" | "post">("all");
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
@@ -321,14 +322,20 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
     );
   }
 
-  const filteredStats = stats.filter(s => {
+  const phaseStats = stats.filter(s => {
+    if (testPhase === "pre") return s.lessonTitle.includes("ก่อนเรียน");
+    if (testPhase === "post") return s.lessonTitle.includes("หลังเรียน");
+    return true;
+  });
+
+  const filteredStats = phaseStats.filter(s => {
     if (filterType === "quality") return s.isAcceptable;
     if (filterType === "needs-revision") return !s.isAcceptable;
     return true;
   });
 
   const displayStats = expanded ? filteredStats : filteredStats.slice(0, 4);
-  const needsRevisionCount = stats.filter(s => !s.isAcceptable).length;
+  const needsRevisionCount = phaseStats.filter(s => !s.isAcceptable).length;
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm w-full overflow-hidden">
@@ -369,26 +376,51 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
       </div>
 
       {/* Filter Tabs & Measurement Formula Note */}
-      <div className="bg-slate-50/70 dark:bg-slate-900/50 px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilterType("all")}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors ${filterType === "all" ? "bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 hover:text-slate-800"}`}
-          >
-            ทั้งหมด ({stats.length})
-          </button>
-          <button
-            onClick={() => setFilterType("quality")}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors ${filterType === "quality" ? "bg-white dark:bg-slate-800 text-emerald-600 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 hover:text-slate-800"}`}
-          >
-            คุณภาพดี ({stats.filter(s => s.isAcceptable).length})
-          </button>
-          <button
-            onClick={() => setFilterType("needs-revision")}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors ${filterType === "needs-revision" ? "bg-white dark:bg-slate-800 text-red-600 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 hover:text-slate-800"}`}
-          >
-            ควรปรับปรุง ({needsRevisionCount})
-          </button>
+      <div className="bg-slate-50/70 dark:bg-slate-900/50 px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between text-xs">
+        <div className="flex flex-col gap-3">
+          {/* Phase Filters */}
+          <div className="flex gap-2 p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl w-fit">
+            <button
+              onClick={() => { setTestPhase("all"); setFilterType("all"); }}
+              className={`px-4 py-1.5 rounded-lg font-bold transition-all ${testPhase === "all" ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              ทั้งหมด
+            </button>
+            <button
+              onClick={() => { setTestPhase("pre"); setFilterType("all"); }}
+              className={`px-4 py-1.5 rounded-lg font-bold transition-all ${testPhase === "pre" ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              ก่อนเรียน
+            </button>
+            <button
+              onClick={() => { setTestPhase("post"); setFilterType("all"); }}
+              className={`px-4 py-1.5 rounded-lg font-bold transition-all ${testPhase === "post" ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              หลังเรียน
+            </button>
+          </div>
+          
+          {/* Quality Filters */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`px-3 py-1 rounded-lg font-medium transition-colors ${filterType === "all" ? "bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 hover:text-slate-800"}`}
+            >
+              ทั้งหมด ({phaseStats.length})
+            </button>
+            <button
+              onClick={() => setFilterType("quality")}
+              className={`px-3 py-1 rounded-lg font-medium transition-colors ${filterType === "quality" ? "bg-white dark:bg-slate-800 text-emerald-600 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 hover:text-slate-800"}`}
+            >
+              คุณภาพดี ({phaseStats.filter(s => s.isAcceptable).length})
+            </button>
+            <button
+              onClick={() => setFilterType("needs-revision")}
+              className={`px-3 py-1 rounded-lg font-medium transition-colors ${filterType === "needs-revision" ? "bg-white dark:bg-slate-800 text-red-600 shadow-sm border border-slate-200 dark:border-slate-700" : "text-slate-500 hover:text-slate-800"}`}
+            >
+              ควรปรับปรุง ({needsRevisionCount})
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 text-slate-500">
