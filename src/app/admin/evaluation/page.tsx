@@ -1,5 +1,7 @@
 "use client";
 
+import * as XLSX from "xlsx";
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
@@ -263,8 +265,83 @@ export default function AdminEvaluationPage() {
     setDimensions(template);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportExcel = () => {
+    try {
+      if (!analytics || analytics.totalRespondents === 0) {
+        toast.warning("ยังไม่มีข้อมูลสำหรับส่งออก");
+        return;
+      }
+      
+      const wb = XLSX.utils.book_new();
+      
+      // 1. Overview Sheet
+      const overviewData = [
+        ["รายงานผลการประเมินความพึงพอใจ"],
+        ["จำนวนผู้ตอบประเมิน", `${analytics.totalRespondents} คน (คิดเป็น ${analytics.responseRate}%)`],
+        ["คะแนนเฉลี่ยรวม", analytics.overallMean],
+        ["ส่วนเบี่ยงเบนมาตรฐาน (SD)", analytics.overallSD],
+        ["ระดับความพึงพอใจภาพรวม", analytics.overallQuality],
+        [],
+        ["ผลการประเมินรายด้าน"],
+        ["ด้านที่", "หัวข้อการประเมิน", "ค่าเฉลี่ย", "SD", "ระดับความพึงพอใจ"]
+      ];
+      
+      const dims = dimensions.length > 0 ? dimensions : (analytics?.dimensions || []);
+      dims.forEach((dim: any, idx: number) => {
+        const stat = analytics.dimensionStats?.[dim.id] || { mean: 0, sd: 0, quality: "-" };
+        overviewData.push([`ด้านที่ ${idx + 1}`, dim.title, stat.mean, stat.sd, stat.quality]);
+      });
+      
+      const overviewWs = XLSX.utils.aoa_to_sheet(overviewData);
+      XLSX.utils.book_append_sheet(wb, overviewWs, "ภาพรวม");
+      
+      // 2. Items Sheet
+      const itemsData = [
+        ["ผลการประเมินรายข้อ"],
+        ["หัวข้อ", "ค่าเฉลี่ย", "SD", "ระดับความพึงพอใจ"]
+      ];
+      
+      dims.forEach((dim: any) => {
+        (dim.items || []).forEach((item: any) => {
+          const stat = analytics.itemStats?.[item.id] || { mean: 0, sd: 0, quality: "-" };
+          itemsData.push([item.text, stat.mean, stat.sd, stat.quality]);
+        });
+      });
+      
+      const itemsWs = XLSX.utils.aoa_to_sheet(itemsData);
+      XLSX.utils.book_append_sheet(wb, itemsWs, "รายข้อ");
+      
+      // 3. Respondents Sheet
+      if (analytics.respondentsList && analytics.respondentsList.length > 0) {
+        const respondentsData = analytics.respondentsList.map((r: any) => ({
+          "ชื่อ-นามสกุล": r.name,
+          "อีเมล": r.email,
+          "คะแนนเฉลี่ย": r.score,
+          "ระดับคุณภาพ": r.quality,
+          "วันที่ทำแบบประเมิน": r.submittedAt
+        }));
+        const respondentsWs = XLSX.utils.json_to_sheet(respondentsData);
+        XLSX.utils.book_append_sheet(wb, respondentsWs, "รายชื่อผู้ตอบ");
+      }
+      
+      // 4. Suggestions Sheet
+      if (analytics.suggestions && analytics.suggestions.length > 0) {
+        const suggestionsData = analytics.suggestions.map((s: any) => ({
+          "ข้อเสนอแนะ": s.text,
+          "ผู้เสนอ": s.name,
+          "วันที่": s.date
+        }));
+        const suggestionsWs = XLSX.utils.json_to_sheet(suggestionsData);
+        XLSX.utils.book_append_sheet(wb, suggestionsWs, "ข้อเสนอแนะ");
+      }
+      
+      // Download
+      XLSX.writeFile(wb, `รายงานความพึงพอใจ_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success("ส่งออกไฟล์ Excel สำเร็จ");
+    } catch (e) {
+      console.error(e);
+      toast.error("เกิดข้อผิดพลาดในการส่งออก Excel");
+    }
   };
 
   if (loading) {
@@ -320,11 +397,11 @@ export default function AdminEvaluationPage() {
         {/* Action Controls */}
         <div className="flex items-center gap-3">
           <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-xl shadow-sm transition-all"
+            onClick={handleExportExcel}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-md shadow-emerald-500/20 transition-all"
           >
             <Printer className="w-4 h-4" />
-            พิมพ์รายงานสรุปผล
+            ส่งออก Excel
           </button>
 
           {/* Toggle Button */}
