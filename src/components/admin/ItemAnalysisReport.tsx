@@ -10,6 +10,7 @@ interface QuestionStat {
   id: string;
   lessonId: string | number;
   lessonTitle: string;
+  moduleTitle: string;
   courseTitle: string;
   text: string;
   totalAttempts: number;
@@ -35,6 +36,7 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
   const [expanded, setExpanded] = useState(false);
   const [filterType, setFilterType] = useState<"all" | "quality" | "needs-revision">("all");
   const [testPhase, setTestPhase] = useState<"all" | "pre" | "post">("all");
+  const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
@@ -86,6 +88,7 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
                           ...q,
                           lessonId: lesson.id,
                           lessonTitle: lesson.title || 'แบบทดสอบ',
+                          moduleTitle: module.title || 'บทเรียน',
                           courseTitle: course.title || 'หลักสูตร'
                         });
                       });
@@ -232,6 +235,7 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
               id: qId,
               lessonId: qData.lessonId,
               lessonTitle: qData.lessonTitle,
+              moduleTitle: qData.moduleTitle,
               courseTitle: qData.courseTitle,
               text: qData.text || 'ไม่มีโจทย์ข้อความ',
               totalAttempts: stat.total,
@@ -322,7 +326,10 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
     );
   }
 
+  const availableModules = Array.from(new Set(stats.map(s => s.moduleTitle))).sort();
+
   const phaseStats = stats.filter(s => {
+    if (moduleFilter !== "all" && s.moduleTitle !== moduleFilter) return false;
     if (testPhase === "pre") return s.lessonTitle.includes("ก่อนเรียน");
     if (testPhase === "post") return s.lessonTitle.includes("หลังเรียน");
     return true;
@@ -380,6 +387,20 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
         <div className="flex flex-col gap-3">
           {/* Phase Filters */}
           <div className="flex gap-2 p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl w-fit">
+            <select
+              value={moduleFilter}
+              onChange={(e) => setModuleFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-transparent text-slate-600 dark:text-slate-300 font-bold border-none outline-none cursor-pointer hover:bg-slate-300/30 dark:hover:bg-slate-700/50 transition-colors appearance-none"
+            >
+              <option value="all">ทุกบทเรียน</option>
+              {availableModules.map(m => {
+                let shortName = m;
+                const match = m.match(/^(บทที่\s*\d+|บทเรียนที่\s*\d+)/);
+                if (match) shortName = match[1];
+                return <option key={m} value={m}>{shortName}</option>
+              })}
+            </select>
+            <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 my-auto mx-1"></div>
             <button
               onClick={() => { setTestPhase("all"); setFilterType("all"); }}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${testPhase === "all" ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
@@ -451,7 +472,7 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
                       ข้อที่ {idx + 1}
                     </span>
                     <span className="text-xs text-slate-400 truncate">
-                      {stat.lessonTitle} ({stat.courseTitle})
+                      {stat.moduleTitle} - {stat.lessonTitle}
                     </span>
                   </div>
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-200 line-clamp-2">

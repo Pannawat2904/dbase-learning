@@ -36,93 +36,115 @@ export default function PrePostComparisonChart({ courseId }: { courseId?: number
       try {
         const supabase = createClient();
         
-        // Fetch all test lessons
-        const { data: lessons } = await supabase
-          .from('lessons')
-          .select('id, title')
-          .eq('type', 'test');
-          
-        if (!lessons) return;
-
-        // Fetch scores
-        let scoresQuery = supabase
-          .from('student_scores')
-          .select('student_id, score, total_score, lesson_id, created_at')
-          .in('lesson_id', lessons.map(l => l.id));
+        // Fetch modules and lessons
+        let modulesQuery = supabase
+          .from('modules')
+          .select(`
+            id,
+            title,
+            course_id,
+            lessons (id, title, type)
+          `);
           
         if (courseId) {
-          scoresQuery = scoresQuery.eq('course_id', courseId);
+          modulesQuery = modulesQuery.eq('course_id', courseId);
         }
 
-        const { data: scores } = await scoresQuery;
+        const { data: modules } = await modulesQuery;
+        if (!modules) return;
+
+        // Fetch scores
+        const lessonIds = modules.flatMap(m => m.lessons.map(l => l.id));
+        if (lessonIds.length === 0) return;
+
+        const { data: scores } = await supabase
+          .from('student_scores')
+          .select('student_id, score, total_score, lesson_id, created_at')
+          .in('lesson_id', lessonIds);
+          
         if (!scores) return;
 
-        // Group by student
-        const studentPreScores = new Map<string, { totalScore: number, maxScore: number }>();
-        const studentPostScores = new Map<string, { totalScore: number, maxScore: number }>();
+        const chartData: ChartData[] = [];
+        let totalImprovementSum = 0;
+        let validModulesCount = 0;
+        const allUniqueStudents = new Set<string>();
 
-        lessons.forEach(lesson => {
-          const isPre = lesson.title.includes('ก่อนเรียน');
-          const isPost = lesson.title.includes('หลังเรียน');
-          
-          if (!isPre && !isPost) return;
+        modules.forEach(module => {
+          const testLessons = module.lessons.filter(l => l.type === 'test');
+          if (testLessons.length === 0) return;
 
-          const lessonScores = scores.filter(s => s.lesson_id === lesson.id);
-          
-          lessonScores.forEach(score => {
-            const sid = score.student_id;
-            const targetMap = isPre ? studentPreScores : studentPostScores;
-            const current = targetMap.get(sid) || { totalScore: 0, maxScore: 0 };
+          const studentPreScores = new Map<string, { totalScore: number, maxScore: number }>();
+          const studentPostScores = new Map<string, { totalScore: number, maxScore: number }>();
+
+          testLessons.forEach(lesson => {
+            const isPre = lesson.title.includes('ก่อนเรียน');
+            const isPost = lesson.title.includes('หลังเรียน');
+            if (!isPre && !isPost) return;
+
+            const lessonScores = scores.filter(s => s.lesson_id === lesson.id);
             
-            // Assuming we take the latest or best score? Let's just sum them if they are different lessons
-            // Or average them? Let's calculate percentage for each submission and average them per student
-            targetMap.set(sid, {
-              totalScore: current.totalScore + Number(score.score || 0),
-              maxScore: current.maxScore + Number(score.total_score || 1)
+            lessonScores.forEach(score => {
+              const sid = score.student_id;
+              allUniqueStudents.add(sid);
+              const targetMap = isPre ? studentPreScores : studentPostScores;
+              const current = targetMap.get(sid) || { totalScore: 0, maxScore: 0 };
+              
+              targetMap.set(sid, {
+                totalScore: current.totalScore + Number(score.score || 0),
+                maxScore: current.maxScore + Number(score.total_score || 1)
+              });
             });
           });
-        });
 
-        // Calculate averages
-        let sumPrePercent = 0;
-        let countPre = 0;
-        studentPreScores.forEach(val => {
-          if (val.maxScore > 0) {
-            sumPrePercent += (val.totalScore / val.maxScore) * 100;
-            countPre++;
+          // Calculate averages for this module
+          let sumPrePercent = 0;
+          let countPre = 0;
+          studentPreScores.forEach(val => {
+            if (val.maxScore > 0) {
+              sumPrePercent += (val.totalScore / val.maxScore) * 100;
+              countPre++;
+            }
+          });
+
+          let sumPostPercent = 0;
+          let countPost = 0;
+          studentPostScores.forEach(val => {
+            if (val.maxScore > 0) {
+              sumPostPercent += (val.totalScore / val.maxScore) * 100;
+              countPost++;
+            }
+          });
+
+          const avgPre = countPre > 0 ? sumPrePercent / countPre : 0;
+          const avgPost = countPost > 0 ? sumPostPercent / countPost : 0;
+
+          // Simplify module title (e.g. "บทที่ 6: การสร้างฟอร์ม" -> "บทที่ 6")
+          let shortName = module.title;
+          const match = module.title.match(/^(บทที่\s*\d+|บทเรียนที่\s*\d+)/);
+          if (match) {
+            shortName = match[1];
+          }
+
+          if (countPre > 0 || countPost > 0) {
+            chartData.push({
+              name: shortName,
+              ก่อนเรียน: Number(avgPre.toFixed(1)),
+              หลังเรียน: Number(avgPost.toFixed(1))
+            });
+            totalImprovementSum += (avgPost - avgPre);
+            validModulesCount++;
           }
         });
 
-        let sumPostPercent = 0;
-        let countPost = 0;
-        studentPostScores.forEach(val => {
-          if (val.maxScore > 0) {
-            sumPostPercent += (val.totalScore / val.maxScore) * 100;
-            countPost++;
-          }
-        });
+        setData(chartData);
 
-        const avgPre = countPre > 0 ? sumPrePercent / countPre : 0;
-        const avgPost = countPost > 0 ? sumPostPercent / countPost : 0;
-
-        setData([
-          {
-            name: "คะแนนเฉลี่ยรวม (%)",
-            ก่อนเรียน: Number(avgPre.toFixed(1)),
-            หลังเรียน: Number(avgPost.toFixed(1))
-          }
-        ]);
-
-        const improvement = avgPost - avgPre;
-
-        // Count unique students who took both or at least one
-        const uniqueStudents = new Set([...studentPreScores.keys(), ...studentPostScores.keys()]);
+        const avgImprovement = validModulesCount > 0 ? totalImprovementSum / validModulesCount : 0;
 
         setStats({
-          avgPre: Number(avgPre.toFixed(1)),
-          avgPost: Number(avgPost.toFixed(1)),
-          improvement: Number(improvement.toFixed(1)),
-          studentsCount: uniqueStudents.size
+          avgPre: 0, // not used in global stats UI right now
+          avgPost: 0,
+          improvement: Number(avgImprovement.toFixed(1)),
+          studentsCount: allUniqueStudents.size
         });
 
       } catch (error) {
