@@ -434,6 +434,7 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
               หลังเรียน
             </button>
           </div>
+          </div>
           
           {/* Quality Filters */}
           <div className="flex gap-2">
