@@ -313,13 +313,24 @@ export default function AdminEvaluationPage() {
       
       // 3. Respondents Sheet
       if (analytics.respondentsList && analytics.respondentsList.length > 0) {
-        const respondentsData = analytics.respondentsList.map((r: any) => ({
-          "ชื่อ-นามสกุล": r.name,
-          "อีเมล": r.email,
-          "คะแนนเฉลี่ย": r.score,
-          "ระดับคุณภาพ": r.quality,
-          "วันที่ทำแบบประเมิน": r.submittedAt
-        }));
+        const allItemIds = dims.flatMap((d: any) => (d.items || []).map((item: any) => item.id));
+        
+        const respondentsData = analytics.respondentsList.map((r: any) => {
+          const row: any = {
+            "ชื่อ-นามสกุล": r.name,
+            "อีเมล": r.email,
+            "คะแนนเฉลี่ย": r.score,
+            "ระดับคุณภาพ": r.quality,
+            "วันที่ทำแบบประเมิน": r.submittedAt
+          };
+          
+          // Add score for each item
+          allItemIds.forEach((itemId: string, index: number) => {
+            row[`ข้อ ${index + 1}`] = r.ratings?.[itemId] || "-";
+          });
+          
+          return row;
+        });
         const respondentsWs = XLSX.utils.json_to_sheet(respondentsData);
         XLSX.utils.book_append_sheet(wb, respondentsWs, "รายชื่อผู้ตอบ");
       }
