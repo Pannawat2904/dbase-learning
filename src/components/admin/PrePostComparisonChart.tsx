@@ -218,7 +218,7 @@ export default function PrePostComparisonChart({ courseId }: { courseId?: number
               <Tooltip
                 cursor={{ fill: '#f8fafc' }}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: number) => [`${value}%`, 'คะแนนเฉลี่ย']}
+                formatter={(value: any) => [`${value}%`, 'คะแนนเฉลี่ย']}
               />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Bar dataKey="ก่อนเรียน" fill="#94a3b8" radius={[6, 6, 0, 0]} name="ก่อนเรียน" />
