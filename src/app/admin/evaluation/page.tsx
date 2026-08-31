@@ -417,13 +417,23 @@ export default function AdminEvaluationPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={async () => {
-              if (confirm("ล้างข้อมูลทดสอบการประเมินทั้งหมดใช่หรือไม่?")) {
-                const res = await fetch('/api/survey/clear', { method: 'DELETE' });
-                if (res.ok) {
-                  toast.success("ล้างข้อมูลสำเร็จ");
-                  setTimeout(() => window.location.reload(), 1000);
+              const pin = prompt("กรุณาใส่รหัสผ่านเพื่อยืนยันการล้างข้อมูล:");
+              if (pin !== null) {
+                if (pin === "84524092") {
+                  const res = await fetch('/api/survey/clear', { 
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin })
+                  });
+                  if (res.ok) {
+                    toast.success("ล้างข้อมูลสำเร็จ");
+                    setTimeout(() => window.location.reload(), 1000);
+                  } else {
+                    const data = await res.json();
+                    toast.error(data.error || "เกิดข้อผิดพลาดในการล้างข้อมูล");
+                  }
                 } else {
-                  toast.error("เกิดข้อผิดพลาดในการล้างข้อมูล");
+                  toast.error("รหัสผ่านไม่ถูกต้อง การล้างข้อมูลถูกยกเลิก");
                 }
               }
             }}
