@@ -328,8 +328,12 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
 
   const availableModules = Array.from(new Set(stats.map(s => s.moduleTitle))).sort();
 
-  const phaseStats = stats.filter(s => {
+  const moduleStats = stats.filter(s => {
     if (moduleFilter !== "all" && s.moduleTitle !== moduleFilter) return false;
+    return true;
+  });
+
+  const phaseStats = moduleStats.filter(s => {
     if (testPhase === "pre") return s.lessonTitle.includes("ก่อนเรียน");
     if (testPhase === "post") return s.lessonTitle.includes("หลังเรียน");
     return true;
@@ -356,7 +360,7 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
               การวิเคราะห์คุณภาพข้อสอบ (Item Analysis)
             </h2>
             <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full font-semibold">
-              {stats.length} ข้อ
+              {moduleStats.length} ข้อ
             </span>
           </div>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
@@ -385,23 +389,33 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
       {/* Filter Tabs & Measurement Formula Note */}
       <div className="bg-slate-50/70 dark:bg-slate-900/50 px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between text-xs">
         <div className="flex flex-col gap-3">
-          {/* Phase Filters */}
-          <div className="flex gap-2 p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl w-fit">
-            <select
-              value={moduleFilter}
-              onChange={(e) => setModuleFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-transparent text-slate-600 dark:text-slate-300 font-bold border-none outline-none cursor-pointer hover:bg-slate-300/30 dark:hover:bg-slate-700/50 transition-colors appearance-none"
-            >
-              <option value="all">ทุกบทเรียน</option>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2 mb-1">
+              <span className="text-slate-500 font-medium py-1.5 pr-2">เลือกบทเรียน:</span>
+              <button
+                onClick={() => setModuleFilter("all")}
+                className={`px-4 py-1.5 rounded-lg font-bold transition-all text-sm ${moduleFilter === "all" ? "bg-indigo-600 text-white shadow-sm" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
+              >
+                ทุกบทเรียน
+              </button>
               {availableModules.map(m => {
                 let shortName = m;
                 const match = m.match(/^(บทที่\s*\d+|บทเรียนที่\s*\d+)/);
                 if (match) shortName = match[1];
-                return <option key={m} value={m}>{shortName}</option>
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setModuleFilter(m)}
+                    className={`px-4 py-1.5 rounded-lg font-bold transition-all text-sm ${moduleFilter === m ? "bg-indigo-600 text-white shadow-sm" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
+                  >
+                    {shortName}
+                  </button>
+                );
               })}
-            </select>
-            <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 my-auto mx-1"></div>
-            <button
+            </div>
+            
+            <div className="flex gap-2 p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl w-fit">
+              <button
               onClick={() => { setTestPhase("all"); setFilterType("all"); }}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${testPhase === "all" ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
             >
