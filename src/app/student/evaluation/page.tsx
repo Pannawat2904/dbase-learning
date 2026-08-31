@@ -249,14 +249,14 @@ export default function StudentEvaluationPage() {
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in duration-500">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-10 sm:p-16 max-w-2xl w-full text-center shadow-2xl shadow-blue-500/5 relative overflow-hidden">
           {/* Decorative background blur */}
-          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none"></div>
+          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none"></div>
           
           <div className="relative z-10">
-            <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-lg shadow-emerald-500/30 transform hover:scale-105 transition-transform duration-300">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-lg shadow-blue-500/30 transform hover:scale-105 transition-transform duration-300">
               <CheckCircle2 className="w-12 h-12" />
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 mb-6 border border-emerald-100 dark:border-emerald-800/50">
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 mb-6 border border-blue-100 dark:border-blue-800/50">
               <Sparkles className="w-4 h-4" />
               ส่งแบบประเมินสำเร็จ
             </span>
@@ -272,7 +272,7 @@ export default function StudentEvaluationPage() {
             <div>
               <Link
                 href="/student/dashboard"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold rounded-2xl shadow-xl transition-all hover:-translate-y-1"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/25 transition-all hover:-translate-y-1"
               >
                 <ArrowLeft className="w-5 h-5" />
                 กลับสู่หน้าหลัก
