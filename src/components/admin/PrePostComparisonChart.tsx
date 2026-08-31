@@ -12,7 +12,7 @@ import {
   Legend,
   Cell
 } from "recharts";
-import { TrendingUp, TrendingDown, BookOpen } from "lucide-react";
+import { TrendingUp, TrendingDown, BookOpen, BarChart3 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface ChartData {
@@ -54,7 +54,7 @@ export default function PrePostComparisonChart({ courseId }: { courseId?: number
         if (!modules) return;
 
         // Fetch scores
-        const lessonIds = modules.flatMap(m => m.lessons.map(l => l.id));
+        const lessonIds = modules.flatMap(m => m.lessons.map(l => String(l.id)));
         if (lessonIds.length === 0) return;
 
         const { data: scores } = await supabase
@@ -81,7 +81,7 @@ export default function PrePostComparisonChart({ courseId }: { courseId?: number
             const isPost = lesson.title.includes('หลังเรียน');
             if (!isPre && !isPost) return;
 
-            const lessonScores = scores.filter(s => s.lesson_id === lesson.id);
+            const lessonScores = scores.filter(s => String(s.lesson_id) === String(lesson.id));
             
             lessonScores.forEach(score => {
               const sid = score.student_id;
@@ -196,7 +196,7 @@ export default function PrePostComparisonChart({ courseId }: { courseId?: number
       <div className="flex-1 min-h-[250px] w-full">
         {stats.studentsCount === 0 ? (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-            <BarChart className="w-12 h-12 mb-2 opacity-20" />
+            <BarChart3 className="w-12 h-12 mb-2 opacity-20" />
             <p>ยังไม่มีข้อมูลคะแนนสอบ</p>
           </div>
         ) : (
