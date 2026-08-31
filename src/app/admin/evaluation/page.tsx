@@ -416,6 +416,23 @@ export default function AdminEvaluationPage() {
         {/* Action Controls */}
         <div className="flex items-center gap-3">
           <button
+            onClick={async () => {
+              if (confirm("ล้างข้อมูลทดสอบการประเมินทั้งหมดใช่หรือไม่?")) {
+                const res = await fetch('/api/survey/clear', { method: 'DELETE' });
+                if (res.ok) {
+                  toast.success("ล้างข้อมูลสำเร็จ");
+                  setTimeout(() => window.location.reload(), 1000);
+                } else {
+                  toast.error("เกิดข้อผิดพลาดในการล้างข้อมูล");
+                }
+              }
+            }}
+            className="inline-flex items-center justify-center p-2.5 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 border border-slate-200 dark:border-slate-800 hover:border-red-200 dark:hover:border-red-800 rounded-xl transition-all"
+            title="ล้างข้อมูลการประเมินทั้งหมด (สำหรับทดสอบ)"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
             onClick={handleExportExcel}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-md shadow-emerald-500/20 transition-all"
           >
