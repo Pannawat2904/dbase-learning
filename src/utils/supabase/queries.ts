@@ -1378,7 +1378,7 @@ export async function submitSatisfactionSurvey(studentId: string, payload: {
         course_id: '1',
         lesson_id: '1',
         exam_type: 'satisfaction_survey',
-        score: Number(payload.overallAverage.toFixed(2)),
+        score: Math.round(payload.overallAverage),
         total_score: 5,
         status: 'submitted',
         answers: {
