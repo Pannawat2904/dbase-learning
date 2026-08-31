@@ -245,43 +245,39 @@ export default function StudentEvaluationPage() {
 
   // 3. COMPLETED STATE (นักเรียนส่งแบบประเมินแล้ว)
   if (isSubmitted) {
-    const score = submissionData?.score || 5;
     return (
-      <div className="max-w-2xl mx-auto py-12 px-4 animate-in fade-in zoom-in duration-500">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-12 text-center shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
-          <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner border border-emerald-200 dark:border-emerald-800/40">
-            <CheckCircle2 className="w-10 h-10" />
-          </div>
-
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 mb-4">
-            <Sparkles className="w-3.5 h-3.5" />
-            ประเมินเรียบร้อยแล้ว
-          </span>
-
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white mb-3">
-            ขอบคุณสำหรับความคิดเห็นและการประเมิน
-          </h1>
-
-          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed max-w-lg mx-auto mb-6">
-            ระบบได้บันทึกผลการประเมินความพึงพอใจของท่านเรียบร้อยแล้ว ข้อมูลนี้จะถูกนำไปพัฒนาและปรับปรุงระบบการเรียนรู้ให้ดียิ่งขึ้น
-          </p>
-
-          <div className="inline-flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 mb-8">
-            <Star className="w-6 h-6 text-amber-400 fill-amber-400" />
-            <div className="text-left">
-              <p className="text-xs text-slate-500 dark:text-slate-400">คะแนนความพึงพอใจที่คุณประเมิน</p>
-              <p className="text-xl font-bold text-slate-800 dark:text-white">{Number(score).toFixed(2)} / 5.00 คะแนน</p>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in duration-500">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-10 sm:p-16 max-w-2xl w-full text-center shadow-2xl shadow-blue-500/5 relative overflow-hidden">
+          {/* Decorative background blur */}
+          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none"></div>
+          
+          <div className="relative z-10">
+            <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-lg shadow-emerald-500/30 transform hover:scale-105 transition-transform duration-300">
+              <CheckCircle2 className="w-12 h-12" />
             </div>
-          </div>
 
-          <div>
-            <Link
-              href="/student/dashboard"
-              className="inline-flex items-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              กลับสู่หน้าหลัก
-            </Link>
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 mb-6 border border-emerald-100 dark:border-emerald-800/50">
+              <Sparkles className="w-4 h-4" />
+              ส่งแบบประเมินสำเร็จ
+            </span>
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-800 dark:text-white mb-4 tracking-tight">
+              ขอบคุณสำหรับความคิดเห็น
+            </h1>
+
+            <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg leading-relaxed max-w-md mx-auto mb-10">
+              ระบบได้บันทึกผลการประเมินของคุณเรียบร้อยแล้ว ข้อมูลนี้จะถูกนำไปพัฒนาและปรับปรุงระบบการเรียนรู้ให้ดียิ่งขึ้นครับ
+            </p>
+
+            <div>
+              <Link
+                href="/student/dashboard"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold rounded-2xl shadow-xl transition-all hover:-translate-y-1"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                กลับสู่หน้าหลัก
+              </Link>
+            </div>
           </div>
         </div>
       </div>
