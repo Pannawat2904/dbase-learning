@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 export default function StudentActionsMenu({ student }: { student: any }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
@@ -22,6 +23,23 @@ export default function StudentActionsMenu({ student }: { student: any }) {
   
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const handleToggleMenu = () => {
+    if (!isOpen && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < 380);
+    }
+    setIsOpen(prev => !prev);
+  };
+
+  useEffect(() => {
+    if (isOpen && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < 380);
+    }
+  }, [isOpen]);
 
   // Fetch violations when progress modal opens
   useEffect(() => {
@@ -208,15 +226,15 @@ export default function StudentActionsMenu({ student }: { student: any }) {
     <>
       <div className="relative" ref={menuRef}>
         <button 
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggleMenu}
           className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           <MoreHorizontal className="w-5 h-5" />
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="py-1">
+          <div className={`absolute right-0 ${openUpward ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right'} w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
+            <div className="py-1 max-h-[65vh] overflow-y-auto divide-y-0">
               <button 
                 onClick={() => {
                   setIsOpen(false);
