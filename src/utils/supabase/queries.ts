@@ -1414,7 +1414,7 @@ export async function getSurveyAnalytics() {
       config
     ] = await Promise.all([
       supabase.from('student_scores').select('*').eq('exam_type', 'satisfaction_survey').order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, full_name, email').eq('role', 'student'),
+      supabase.from('profiles').select('id, full_name, email, avatar_url, created_at').eq('role', 'student'),
       getSurveyConfig()
     ]);
 
@@ -1422,6 +1422,26 @@ export async function getSurveyAnalytics() {
     const totalRespondents = responses?.length || 0;
 
     if (respError || !responses || responses.length === 0) {
+      const pendingStudents = (profiles || [])
+        .map(p => {
+          const studentIdNum = p.email ? p.email.split('@')[0].replace(/\D/g, '') : '';
+          return {
+            id: p.id,
+            studentId: p.id,
+            studentIdNum,
+            name: p.full_name || 'ไม่ระบุชื่อ',
+            email: p.email || '-',
+            avatarUrl: p.avatar_url || '',
+            createdAt: p.created_at
+          };
+        })
+        .sort((a, b) => {
+          if (a.studentIdNum && b.studentIdNum) {
+            return a.studentIdNum.localeCompare(b.studentIdNum, 'th', { numeric: true });
+          }
+          return a.name.localeCompare(b.name, 'th');
+        });
+
       return {
         isOpen: config.isOpen,
         title: config.title,
@@ -1430,6 +1450,7 @@ export async function getSurveyAnalytics() {
         scaleLevels: config.scaleLevels,
         totalStudents,
         totalRespondents: 0,
+        totalPending: pendingStudents.length,
         responseRate: 0,
         overallMean: 0,
         overallSD: 0,
@@ -1437,7 +1458,8 @@ export async function getSurveyAnalytics() {
         dimensionStats: {},
         itemStats: {},
         suggestions: [],
-        respondentsList: []
+        respondentsList: [],
+        pendingStudents
       };
     }
 
@@ -1548,6 +1570,28 @@ export async function getSurveyAnalytics() {
       };
     });
 
+    const respondedStudentIds = new Set((responses || []).map(r => r.student_id));
+    const pendingStudents = (profiles || [])
+      .filter(p => !respondedStudentIds.has(p.id))
+      .map(p => {
+        const studentIdNum = p.email ? p.email.split('@')[0].replace(/\D/g, '') : '';
+        return {
+          id: p.id,
+          studentId: p.id,
+          studentIdNum,
+          name: p.full_name || 'ไม่ระบุชื่อ',
+          email: p.email || '-',
+          avatarUrl: p.avatar_url || '',
+          createdAt: p.created_at
+        };
+      })
+      .sort((a, b) => {
+        if (a.studentIdNum && b.studentIdNum) {
+          return a.studentIdNum.localeCompare(b.studentIdNum, 'th', { numeric: true });
+        }
+        return a.name.localeCompare(b.name, 'th');
+      });
+
     return {
       isOpen: config.isOpen,
       title: config.title,
@@ -1556,6 +1600,7 @@ export async function getSurveyAnalytics() {
       scaleLevels: config.scaleLevels,
       totalStudents,
       totalRespondents,
+      totalPending: pendingStudents.length,
       responseRate: totalStudents > 0 ? Math.round((totalRespondents / totalStudents) * 100) : 0,
       overallMean: overallStats.mean,
       overallSD: overallStats.sd,
@@ -1564,7 +1609,8 @@ export async function getSurveyAnalytics() {
       dimensionStats,
       itemStats,
       suggestions: suggestionsList,
-      respondentsList
+      respondentsList,
+      pendingStudents
     };
   } catch (error) {
     console.error('Error in getSurveyAnalytics:', error);
@@ -1576,6 +1622,7 @@ export async function getSurveyAnalytics() {
       scaleLevels: [],
       totalStudents: 0,
       totalRespondents: 0,
+      totalPending: 0,
       responseRate: 0,
       overallMean: 0,
       overallSD: 0,
@@ -1583,7 +1630,8 @@ export async function getSurveyAnalytics() {
       dimensionStats: {},
       itemStats: {},
       suggestions: [],
-      respondentsList: []
+      respondentsList: [],
+      pendingStudents: []
     };
   }
 }

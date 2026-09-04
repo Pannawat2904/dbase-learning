@@ -27,7 +27,13 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
-  RotateCcw
+  RotateCcw,
+  UserX,
+  UserCheck,
+  Mail,
+  Copy,
+  CheckCheck,
+  Search
 } from "lucide-react";
 import AutoRefresh from "@/components/admin/AutoRefresh";
 import SatisfactionCharts from "@/components/admin/SatisfactionCharts";
@@ -50,7 +56,13 @@ export default function AdminEvaluationPage() {
   const [savingForm, setSavingForm] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
   const [analytics, setAnalytics] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"builder" | "overview" | "items" | "suggestions" | "respondents">("builder");
+  const [activeTab, setActiveTab] = useState<"builder" | "overview" | "items" | "suggestions" | "respondents" | "pending">("builder");
+
+  // Pending Students State
+  const [pendingSearch, setPendingSearch] = useState("");
+  const [pendingSort, setPendingSort] = useState<"id_asc" | "id_desc" | "name_asc" | "name_desc">("id_asc");
+  const [copiedEmails, setCopiedEmails] = useState(false);
+  const [copiedList, setCopiedList] = useState(false);
 
   // Form Builder State
   const [surveyTitle, setSurveyTitle] = useState("");
@@ -343,7 +355,20 @@ export default function AdminEvaluationPage() {
         XLSX.utils.book_append_sheet(wb, respondentsWs, "รายชื่อผู้ตอบ");
       }
       
-      // 4. Suggestions Sheet
+      // 4. Pending Students Sheet
+      if (analytics.pendingStudents && analytics.pendingStudents.length > 0) {
+        const pendingData = analytics.pendingStudents.map((p: any, idx: number) => ({
+          "ลำดับ": idx + 1,
+          "รหัสประจำตัว": p.studentIdNum || "-",
+          "ชื่อ-นามสกุล": p.name,
+          "อีเมล": p.email,
+          "สถานะ": "ยังไม่ทำแบบประเมิน"
+        }));
+        const pendingWs = XLSX.utils.json_to_sheet(pendingData);
+        XLSX.utils.book_append_sheet(wb, pendingWs, "รายชื่อผู้ยังไม่ประเมิน");
+      }
+      
+      // 5. Suggestions Sheet
       if (analytics.suggestions && analytics.suggestions.length > 0) {
         const suggestionsData = analytics.suggestions.map((s: any) => ({
           "ข้อเสนอแนะ": s.text,
@@ -380,6 +405,7 @@ export default function AdminEvaluationPage() {
   const isOpen = Boolean(analytics?.isOpen);
   const totalRespondents = analytics?.totalRespondents || 0;
   const totalStudents = analytics?.totalStudents || 0;
+  const totalPending = analytics?.totalPending ?? (totalStudents > totalRespondents ? totalStudents - totalRespondents : 0);
   const responseRate = analytics?.responseRate || 0;
   const overallMean = analytics?.overallMean || 0;
   const overallSD = analytics?.overallSD || 0;
@@ -387,6 +413,62 @@ export default function AdminEvaluationPage() {
   const overallQualityColor = analytics?.overallQualityColor || "text-slate-600 bg-slate-100";
   const currentDimensions = dimensions.length > 0 ? dimensions : (analytics?.dimensions || []);
   const totalItemsCount = currentDimensions.flatMap((d: any) => d.items || []).length;
+
+  const pendingStudentsList = analytics?.pendingStudents || [];
+  const filteredPending = pendingStudentsList
+    .filter((p: any) => {
+      if (!pendingSearch.trim()) return true;
+      const q = pendingSearch.toLowerCase().trim();
+      return (
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.email || "").toLowerCase().includes(q) ||
+        (p.studentIdNum || "").includes(q)
+      );
+    })
+    .sort((a: any, b: any) => {
+      switch (pendingSort) {
+        case "id_asc":
+          return (a.studentIdNum || "").localeCompare(b.studentIdNum || "", "th", { numeric: true });
+        case "id_desc":
+          return (b.studentIdNum || "").localeCompare(a.studentIdNum || "", "th", { numeric: true });
+        case "name_asc":
+          return (a.name || "").localeCompare(b.name || "", "th");
+        case "name_desc":
+          return (b.name || "").localeCompare(a.name || "", "th");
+        default:
+          return (a.studentIdNum || "").localeCompare(b.studentIdNum || "", "th", { numeric: true });
+      }
+    });
+
+  const handleCopyEmails = () => {
+    if (pendingStudentsList.length === 0) {
+      toast.warning("ไม่มีอีเมลนักเรียนที่ยังไม่ประเมิน");
+      return;
+    }
+    const emails = pendingStudentsList
+      .map((p: any) => p.email)
+      .filter((e: string) => e && e !== "-")
+      .join(", ");
+    navigator.clipboard.writeText(emails);
+    setCopiedEmails(true);
+    toast.success(`คัดลอกอีเมลนักเรียนที่ยังไม่ประเมิน ${pendingStudentsList.length} คน เรียบร้อยแล้ว`);
+    setTimeout(() => setCopiedEmails(false), 3000);
+  };
+
+  const handleCopyList = () => {
+    if (pendingStudentsList.length === 0) {
+      toast.warning("ไม่มีรายชื่อนักเรียนที่ยังไม่ประเมิน");
+      return;
+    }
+    const listText = `รายชื่อนักเรียนที่ยังไม่ประเมินความพึงพอใจ (${pendingStudentsList.length} คน):\n` +
+      pendingStudentsList.map((p: any, idx: number) => 
+        `${idx + 1}. ${p.studentIdNum ? `[${p.studentIdNum}] ` : ""}${p.name} (${p.email})`
+      ).join("\n");
+    navigator.clipboard.writeText(listText);
+    setCopiedList(true);
+    toast.success(`คัดลอกรายชื่อนักเรียน ${pendingStudentsList.length} คน เรียบร้อยแล้ว`);
+    setTimeout(() => setCopiedList(false), 3000);
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -524,6 +606,27 @@ export default function AdminEvaluationPage() {
             <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
               <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${responseRate}%` }}></div>
             </div>
+
+            <div className="flex items-center justify-between text-xs mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+              <button 
+                type="button"
+                onClick={() => setActiveTab("respondents")} 
+                className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center gap-1 transition-colors"
+                title="คลิกเพื่อดูรายชื่อผู้ตอบแล้ว"
+              >
+                <Check className="w-3.5 h-3.5" />
+                ตอบแล้ว: {totalRespondents} คน
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab("pending")} 
+                className="text-amber-600 dark:text-amber-400 font-semibold hover:underline flex items-center gap-1 transition-colors"
+                title="คลิกเพื่อดูรายชื่อผู้ที่ยังไม่ทำแบบประเมิน"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                ยังไม่ประเมิน: {totalPending} คน
+              </button>
+            </div>
           </div>
         </div>
 
@@ -624,7 +727,24 @@ export default function AdminEvaluationPage() {
           }`}
         >
           <Users className="w-4 h-4" />
-          รายชื่อผู้ตอบแบบประเมิน ({analytics?.respondentsList?.length || 0})
+          ผู้ตอบแบบประเมินแล้ว ({analytics?.respondentsList?.length || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("pending")}
+          className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === "pending" 
+              ? "border-amber-500 text-amber-600 dark:text-amber-400" 
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <UserX className="w-4 h-4" />
+          ยังไม่ประเมิน ({totalPending})
+          {totalPending > 0 && (
+            <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+              {totalPending}
+            </span>
+          )}
         </button>
       </div>
 
@@ -1260,11 +1380,26 @@ export default function AdminEvaluationPage() {
       {/* TAB 5: RESPONDENTS LIST */}
       {/* ==================================================== */}
       {activeTab === "respondents" && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white">
-              รายชื่อผู้ตอบแบบประเมินความพึงพอใจ ({analytics?.respondentsList?.length || 0} คน)
-            </h2>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm space-y-0">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                รายชื่อผู้ตอบแบบประเมินความพึงพอใจ ({analytics?.respondentsList?.length || 0} คน)
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                รายชื่อนักเรียนที่ส่งแบบประเมินเรียบร้อยแล้ว พร้อมคะแนนเฉลี่ยและระดับคุณภาพ
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("pending")}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors self-start sm:self-auto shadow-xs"
+            >
+              <UserX className="w-4 h-4" />
+              ดูรายชื่อที่ยังไม่ประเมิน ({totalPending} คน)
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -1311,6 +1446,237 @@ export default function AdminEvaluationPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* TAB 6: PENDING STUDENTS LIST (ยังไม่ประเมิน) */}
+      {/* ==================================================== */}
+      {activeTab === "pending" && (
+        <div className="space-y-6">
+          {/* Header & Quick Action Card */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+                    <UserX className="w-5 h-5" />
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white">
+                    รายชื่อนักเรียนที่ยังไม่ประเมินความพึงพอใจ
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    {totalPending} คน
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5">
+                  รายชื่อนักเรียนในระบบที่ยังไม่ได้ทำแบบประเมินความพึงพอใจ เพื่อให้ครูผู้สอนติดตามและนำอีเมลไปแจ้งเตือนได้อย่างสะดวก
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("respondents")}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors"
+                >
+                  <Users className="w-4 h-4 text-blue-500" />
+                  ดูผู้ตอบแล้ว ({totalRespondents} คน)
+                </button>
+              </div>
+            </div>
+
+            {/* Quick KPI Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400">นักเรียนทั้งหมด</p>
+                  <p className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{totalStudents} <span className="text-xs font-normal text-slate-400">คน</span></p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                  <Users className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">ประเมินแล้ว</p>
+                  <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+                    {totalRespondents} <span className="text-xs font-normal text-emerald-600/70">คน ({responseRate}%)</span>
+                  </p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">ยังไม่ประเมิน</p>
+                  <p className="text-2xl font-black text-amber-700 dark:text-amber-300 mt-0.5">
+                    {totalPending} <span className="text-xs font-normal text-amber-600/70">คน ({totalStudents > 0 ? Math.round((totalPending / totalStudents) * 100) : 0}%)</span>
+                  </p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
+                  <UserX className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Action Toolbar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อ, รหัสนักเรียน, อีเมล..."
+                  value={pendingSearch}
+                  onChange={(e) => setPendingSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <select
+                  value={pendingSort}
+                  onChange={(e: any) => setPendingSort(e.target.value)}
+                  className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="id_asc">เรียงตามรหัส: น้อยไปมาก</option>
+                  <option value="id_desc">เรียงตามรหัส: มากไปน้อย</option>
+                  <option value="name_asc">เรียงตามชื่อ: ก - ฮ (A - Z)</option>
+                  <option value="name_desc">เรียงตามชื่อ: ฮ - ก (Z - A)</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={handleCopyEmails}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition-all"
+                  title="คัดลอกอีเมลของนักเรียนที่ยังไม่ประเมินทั้งหมด สำหรับนำไปวางในช่องส่งเมล"
+                >
+                  {copiedEmails ? <CheckCheck className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+                  {copiedEmails ? "คัดลอกอีเมลแล้ว!" : "คัดลอกอีเมลทั้งหมด"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyList}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition-colors"
+                  title="คัดลอกรายชื่อและรหัสนักเรียนทั้งหมดเป็นข้อความ"
+                >
+                  {copiedList ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-slate-400" />}
+                  {copiedList ? "คัดลอกรายชื่อแล้ว!" : "คัดลอกรายชื่อ"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Students Data View */}
+          {totalPending === 0 ? (
+            <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border-2 border-emerald-200 dark:border-emerald-800/50 rounded-3xl p-12 text-center space-y-3">
+              <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-sm">
+                <UserCheck className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-extrabold text-emerald-800 dark:text-emerald-300">
+                นักเรียนทุกคนทำแบบประเมินความพึงพอใจครบถ้วนแล้ว! 🎉
+              </h3>
+              <p className="text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 max-w-md mx-auto">
+                ผู้เรียนทั้งหมด {totalStudents} คน ได้ส่งแบบประเมินความพึงพอใจครบ 100% เรียบร้อยแล้ว ไม่มีนักเรียนค้างการประเมิน
+              </p>
+            </div>
+          ) : filteredPending.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-400 text-sm">
+              ไม่พบนักเรียนที่ตรงกับคำค้นหา &ldquo;{pendingSearch}&rdquo;
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+              {/* Desktop Table View (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                      <th className="px-6 py-4 w-16 text-center">ลำดับ</th>
+                      <th className="px-6 py-4 w-36">รหัสประจำตัว</th>
+                      <th className="px-6 py-4">ชื่อ-นามสกุล</th>
+                      <th className="px-6 py-4">อีเมล</th>
+                      <th className="px-6 py-4 text-center w-40">สถานะ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
+                    {filteredPending.map((student: any, idx: number) => (
+                      <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-6 py-4 text-center text-xs font-mono text-slate-400">
+                          {idx + 1}
+                        </td>
+                        <td className="px-6 py-4 font-mono font-bold text-slate-700 dark:text-slate-300">
+                          {student.studentIdNum || "-"}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                              {student.avatarUrl ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img src={student.avatarUrl} alt={student.name} className="w-full h-full object-cover" />
+                              ) : (
+                                (student.name || "U").charAt(0)
+                              )}
+                            </div>
+                            <span className="font-semibold text-slate-800 dark:text-white">
+                              {student.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 text-xs font-mono">
+                          {student.email}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            ยังไม่ทำแบบประเมิน
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View (< md) */}
+              <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredPending.map((student: any, idx: number) => (
+                  <div key={student.id} className="p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                          {student.avatarUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={student.avatarUrl} alt={student.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (student.name || "U").charAt(0)
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 dark:text-white text-sm leading-tight">
+                            {idx + 1}. {student.name}
+                          </p>
+                          <p className="text-xs text-slate-400 font-mono mt-0.5">
+                            รหัส: {student.studentIdNum || "-"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
+                        ยังไม่ประเมิน
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl">
+                      {student.email}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
