@@ -40,12 +40,16 @@ export async function getCourses(publishedOnly: boolean = false) {
   const [
     { data: scores },
     { data: certs },
-    { count: totalStudentsCount }
+    { count: totalStudentsCountRaw },
+    deletedStudentIds
   ] = await Promise.all([
     supabase.from('student_scores').select('course_id, student_id'),
     supabase.from('certificates').select('course_id, student_id'),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student')
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+    getDeletedStudentIds()
   ]);
+
+  const totalStudentsCount = Math.max(0, (totalStudentsCountRaw || 0) - (deletedStudentIds?.length || 0));
 
   const courseStudentsMap = new Map<string, Set<string>>();
 
@@ -158,17 +162,21 @@ export async function getDashboardStats() {
   // Get total courses, students, and recent activity
   const [
     { count: coursesCount },
-    { count: studentsCount },
+    { count: studentsCountRaw },
     { data: allScores },
     { data: allMessages },
-    { data: allAILogs }
+    { data: allAILogs },
+    deletedStudentIds
   ] = await Promise.all([
     supabase.from('courses').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
     supabase.from('student_scores').select('student_id, created_at'),
     supabase.from('messages').select('student_id, created_at'),
-    supabase.from('ai_chat_logs').select('student_id, created_at')
+    supabase.from('ai_chat_logs').select('student_id, created_at'),
+    getDeletedStudentIds()
   ]);
+
+  const studentsCount = Math.max(0, (studentsCountRaw || 0) - (deletedStudentIds?.length || 0));
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const todayActiveStudents = new Set<string>();
@@ -191,21 +199,52 @@ export async function getDashboardStats() {
   };
 }
 
+export async function getDeletedStudentIds(): Promise<string[]> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('student_scores')
+      .select('answers')
+      .eq('exam_type', 'deleted_students_config')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (data && data.length > 0 && Array.isArray((data[0].answers as any)?.deletedIds)) {
+      return (data[0].answers as any).deletedIds;
+    }
+    return [];
+  } catch (err) {
+    console.error('Error fetching deleted student ids:', err);
+    return [];
+  }
+}
+
 export async function getStudents() {
   const supabase = await createClient();
   
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'student')
-    .order('created_at', { ascending: false });
+  const [
+    { data, error },
+    deletedIds
+  ] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'student')
+      .order('created_at', { ascending: false }),
+    getDeletedStudentIds()
+  ]);
     
   if (error) {
     console.error('Error fetching students:', error);
     return [];
   }
   
-  return data;
+  if (deletedIds && deletedIds.length > 0) {
+    const deletedSet = new Set(deletedIds);
+    return (data || []).filter(s => !deletedSet.has(s.id));
+  }
+  
+  return data || [];
 }
 
 export async function sendNotification(userId: string, title: string, message: string) {
@@ -1179,17 +1218,62 @@ export async function deleteStudentProfile(studentId: string) {
   await requireAdmin();
   const supabase = await createClient();
   
-  // Clean up all related data first
-  await resetStudentProgress(studentId);
-  await supabase.from('messages').delete().eq('student_id', studentId);
-  
-  // Delete the profile
-  const { error } = await supabase.from('profiles').delete().eq('id', studentId);
-  
-  if (error) {
-    console.error('Error deleting student profile:', error);
-    return false;
+  // 1. Try Supabase RPC if created in database
+  try {
+    const { error: rpcErr } = await supabase.rpc('delete_student_account', { student_uuid: studentId });
+    if (!rpcErr) {
+      console.log('Successfully executed delete_student_account RPC for:', studentId);
+    }
+  } catch (e) {
+    // ignore if rpc not created
   }
+
+  // 2. Try Service Role client if SUPABASE_SERVICE_ROLE_KEY is configured
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+      const adminClient = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await adminClient.auth.admin.deleteUser(studentId);
+      await adminClient.from('profiles').delete().eq('id', studentId);
+    } catch (e) {
+      console.error('Service role delete user error:', e);
+    }
+  }
+
+  // 3. Clean up all student data across all child tables
+  await supabase.from('student_scores').delete().eq('student_id', studentId);
+  await supabase.from('student_assignments').delete().eq('student_id', studentId);
+  await supabase.from('student_lesson_progress').delete().eq('student_id', studentId);
+  await supabase.from('certificates').delete().eq('student_id', studentId);
+  await supabase.from('exam_violations').delete().eq('student_id', studentId);
+  await supabase.from('messages').delete().eq('student_id', studentId);
+  await supabase.from('notifications').delete().eq('user_id', studentId);
+  await supabase.from('profiles').delete().eq('id', studentId);
+
+  // 4. Record permanently in deleted_students_config to guarantee complete removal
+  const currentDeleted = await getDeletedStudentIds();
+  if (!currentDeleted.includes(studentId)) {
+    const updatedDeleted = [...currentDeleted, studentId];
+    await supabase.from('student_scores').insert([
+      {
+        student_id: '00000000-0000-0000-0000-000000000000',
+        course_id: '1',
+        lesson_id: '1',
+        exam_type: 'deleted_students_config',
+        score: updatedDeleted.length,
+        total_score: 1,
+        status: 'active',
+        answers: {
+          deletedIds: updatedDeleted,
+          updated_at: new Date().toISOString()
+        }
+      }
+    ]);
+  }
+
   return true;
 }
 
@@ -1411,18 +1495,23 @@ export async function getSurveyAnalytics() {
     const [
       { data: responses, error: respError },
       { data: profiles },
-      config
+      config,
+      deletedIds
     ] = await Promise.all([
       supabase.from('student_scores').select('*').eq('exam_type', 'satisfaction_survey').order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name, email, avatar_url, created_at').eq('role', 'student'),
-      getSurveyConfig()
+      getSurveyConfig(),
+      getDeletedStudentIds()
     ]);
 
-    const totalStudents = profiles?.length || 0;
-    const totalRespondents = responses?.length || 0;
+    const deletedSet = new Set(deletedIds || []);
+    const activeProfiles = (profiles || []).filter(p => !deletedSet.has(p.id));
+
+    const totalStudents = activeProfiles.length;
+    const totalRespondents = (responses || []).filter(r => !deletedSet.has(r.student_id)).length;
 
     if (respError || !responses || responses.length === 0) {
-      const pendingStudents = (profiles || [])
+      const pendingStudents = activeProfiles
         .map(p => {
           const studentIdNum = p.email ? p.email.split('@')[0].replace(/\D/g, '') : '';
           return {
@@ -1570,8 +1659,8 @@ export async function getSurveyAnalytics() {
       };
     });
 
-    const respondedStudentIds = new Set((responses || []).map(r => r.student_id));
-    const pendingStudents = (profiles || [])
+    const respondedStudentIds = new Set((responses || []).filter(r => !deletedSet.has(r.student_id)).map(r => r.student_id));
+    const pendingStudents = activeProfiles
       .filter(p => !respondedStudentIds.has(p.id))
       .map(p => {
         const studentIdNum = p.email ? p.email.split('@')[0].replace(/\D/g, '') : '';

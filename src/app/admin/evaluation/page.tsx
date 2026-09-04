@@ -470,6 +470,34 @@ export default function AdminEvaluationPage() {
     setTimeout(() => setCopiedList(false), 3000);
   };
 
+  const handleDeleteStudent = async (studentId: string, name: string, email: string) => {
+    const confirmed = await confirmDialog({
+      title: "ลบบัญชีนักเรียนออกจากระบบ",
+      message: `คุณต้องการลบบัญชี "${name}" (${email}) ออกจากระบบอย่างถาวรใช่หรือไม่?\n\nหากเป็นบัญชีที่เข้าสู่ระบบผิดมา บัญชีนี้จะถูกนำออกจากระบบและการคำนวณทั้งหมดทันที`,
+      type: "danger",
+      confirmText: "ยืนยันลบบัญชีนี้"
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/students/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`ลบบัญชี ${name} ออกจากระบบเรียบร้อยแล้ว`);
+        fetchAnalytics();
+      } else {
+        toast.error(data.error || "เกิดข้อผิดพลาดในการลบบัญชี");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ");
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <AutoRefresh interval={5000} />
@@ -1599,7 +1627,8 @@ export default function AdminEvaluationPage() {
                       <th className="px-6 py-4 w-36">รหัสประจำตัว</th>
                       <th className="px-6 py-4">ชื่อ-นามสกุล</th>
                       <th className="px-6 py-4">อีเมล</th>
-                      <th className="px-6 py-4 text-center w-40">สถานะ</th>
+                      <th className="px-6 py-4 text-center w-36">สถานะ</th>
+                      <th className="px-6 py-4 text-center w-28">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
@@ -1635,6 +1664,17 @@ export default function AdminEvaluationPage() {
                             ยังไม่ทำแบบประเมิน
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStudent(student.id, student.name, student.email)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-800 transition-colors shadow-xs"
+                            title="ลบบัญชีที่เข้าผิดนี้ออกจากระบบ"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            ลบบัญชี
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1669,8 +1709,18 @@ export default function AdminEvaluationPage() {
                       </span>
                     </div>
 
-                    <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl">
-                      {student.email}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl flex-1 truncate">
+                        {student.email}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStudent(student.id, student.name, student.email)}
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        ลบ
+                      </button>
                     </div>
                   </div>
                 ))}

@@ -165,20 +165,29 @@ export default function StudentActionsMenu({ student }: { student: any }) {
 
   const handleDeleteStudent = async () => {
     const confirmed = await confirmDialog({
-      title: `ลบข้อมูลนักเรียนออกจากระบบ`,
-      message: `อันตราย!: คุณแน่ใจหรือไม่ที่จะ "ลบข้อมูลนักเรียน" ${student.name} ออกจากระบบ?\nข้อมูลทุกอย่างของนักเรียนคนนี้จะถูกลบทั้งหมด! (ไม่สามารถกู้คืนได้)`,
+      title: `ลบบัญชีนักเรียนออกจากระบบ`,
+      message: `คำเตือน!: คุณแน่ใจหรือไม่ที่จะ "ลบบัญชีนักเรียน" ${student.name} (${student.email || student.studentIdNum}) ออกจากระบบอย่างถาวร?\nข้อมูลคะแนน การส่งงาน และความก้าวหน้าทั้งหมดจะถูกนำออกจากระบบทันที!`,
       type: "danger",
-      confirmText: "ยืนยันลบข้อมูลนักเรียน"
+      confirmText: "ยืนยันลบบัญชีนี้"
     });
 
     if (confirmed) {
-      const success = await deleteStudentProfile(student.id);
-      if (success) {
-        toast.success("ลบข้อมูลนักเรียนเรียบร้อยแล้ว");
-        setIsOpen(false);
-        router.refresh();
-      } else {
-        toast.error("เกิดข้อผิดพลาดในการลบข้อมูลนักเรียน");
+      try {
+        const res = await fetch('/api/admin/students/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: student.id })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          toast.success(`ลบบัญชี ${student.name} ออกจากระบบเรียบร้อยแล้ว`);
+          setIsOpen(false);
+          router.refresh();
+        } else {
+          toast.error(data.error || "เกิดข้อผิดพลาดในการลบบัญชีนักเรียน");
+        }
+      } catch (err: any) {
+        toast.error(err.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ");
       }
     }
   };
