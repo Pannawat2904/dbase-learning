@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# temp test and scratch scripts
+/scratch/
+check_*.js
+test_*.js
+delete_user.js
+fix_duplicates.js
+

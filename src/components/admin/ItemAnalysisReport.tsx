@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { BarChart3, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Download, Info, CheckCircle, XCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import * as XLSX from "xlsx";
+import {
+  createLMSWorkbook,
+  addHeaderBanner,
+  addKpiCards,
+  formatStyledTable,
+  downloadWorkbook,
+  ColumnDefinition,
+} from "@/utils/excel-styler";
 import { toast } from "sonner";
 
 interface QuestionStat {
@@ -267,31 +275,86 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
     fetchAnalysis();
   }, [courseId]);
 
-  const handleExportXLSX = () => {
+  const handleExportXLSX = async () => {
     if (stats.length === 0) return;
     setIsExporting(true);
     try {
-      const exportRows = stats.map((s, idx) => ({
-        "ข้อที่": idx + 1,
-        "คำถาม (Item Text)": s.text.replace(/<[^>]*>?/gm, ''),
-        "ชุดบทเรียน/ข้อสอบ": s.lessonTitle,
-        "รายวิชา": s.courseTitle,
-        "จำนวนผู้ตอบ (N)": s.totalAttempts,
-        "จำนวนตอบถูก (R)": s.correctAttempts,
-        "ค่าความยาก (p)": s.p,
-        "แปลผลค่าความยาก": s.pLabel,
-        "ค่าอำนาจจำแนก (r)": s.r,
-        "แปลผลค่าอำนาจจำแนก": s.rLabel,
-        "สรุปคุณภาพข้อสอบ": s.isAcceptable ? "คุณภาพดี (นำไปใช้ได้)" : "ควรปรับปรุงข้อสอบ"
-      }));
+      const wb = createLMSWorkbook("รายงานวิเคราะห์ข้อสอบ");
+      const ws = wb.addWorksheet("วิเคราะห์ข้อสอบรายข้อ", {
+        views: [{ showGridLines: true }],
+        properties: { tabColor: { argb: "FF312E81" } },
+      });
 
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(exportRows);
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Item_Analysis_Report");
+      // 1. Header Banner
+      const courseTitle = stats[0]?.courseTitle || "หลักสูตร";
+      const nextRow = addHeaderBanner(ws, {
+        title: "รายงานผลการวิเคราะห์คุณภาพข้อสอบรายข้อ (Item Analysis Report)",
+        subtitle: `รายวิชา: ${courseTitle}`,
+        infoList: [`จำนวนข้อสอบทั้งหมด: ${stats.length} ข้อ`],
+        totalCols: 10,
+        theme: "indigo",
+      });
 
+      // 2. Summary KPI Metrics
+      const totalItems = stats.length;
+      const acceptableCount = stats.filter(s => s.isAcceptable).length;
+      const revisionCount = totalItems - acceptableCount;
+      const avgP = totalItems > 0 ? stats.reduce((acc, s) => acc + (s.p || 0), 0) / totalItems : 0;
+      const avgR = totalItems > 0 ? stats.reduce((acc, s) => acc + (s.r || 0), 0) / totalItems : 0;
+
+      const tableStartRow = addKpiCards(
+        ws,
+        [
+          { label: "📝 ข้อสอบทั้งหมด", value: `${totalItems} ข้อ`, sublabel: "ในรายวิชานี้", colorType: "blue" },
+          { label: "✅ คุณภาพดี (ใช้ได้)", value: `${acceptableCount} ข้อ`, sublabel: `${((acceptableCount / totalItems) * 100).toFixed(1)}% ของทั้งหมด`, colorType: "emerald" },
+          { label: "⚠️ ควรปรับปรุง", value: `${revisionCount} ข้อ`, sublabel: `${((revisionCount / totalItems) * 100).toFixed(1)}% ของทั้งหมด`, colorType: "amber" },
+          { label: "🎯 ค่าความยากเฉลี่ย (p)", value: avgP.toFixed(2), sublabel: "0.20 - 0.80 คือเกณฑ์ดี", colorType: "purple" },
+          { label: "⚖️ ค่าอำนาจจำแนกเฉลี่ย (r)", value: avgR.toFixed(2), sublabel: ">= 0.20 คือจำแนกได้", colorType: "blue" },
+        ],
+        nextRow
+      );
+
+      // 3. Columns
+      const columns: ColumnDefinition[] = [
+        { header: "ข้อที่", width: 8, align: "center" },
+        { header: "ข้อคำถาม (Item Text)", width: 48, align: "left", wrapText: true },
+        { header: "ชุดบทเรียน/แบบทดสอบ", width: 28, align: "left" },
+        { header: "จำนวนผู้ตอบ (N)", width: 15, align: "center" },
+        { header: "ตอบถูก (R)", width: 14, align: "center" },
+        { header: "ความยาก (p)", width: 14, align: "right", numFmt: "0.00" },
+        { header: "แปลผลความยาก", width: 18, align: "center" },
+        { header: "อำนาจจำแนก (r)", width: 14, align: "right", numFmt: "0.00" },
+        { header: "แปลผลอำนาจจำแนก", width: 20, align: "center" },
+        { header: "สรุปคุณภาพข้อสอบ", width: 22, align: "center" },
+      ];
+
+      // 4. Data Rows
+      const rows = stats.map((s, idx) => [
+        idx + 1,
+        s.text.replace(/<[^>]*>?/gm, "").trim(),
+        s.lessonTitle || "-",
+        s.totalAttempts || 0,
+        s.correctAttempts || 0,
+        Number(s.p) || 0,
+        s.pLabel || "-",
+        Number(s.r) || 0,
+        s.rLabel || "-",
+        s.isAcceptable ? "คุณภาพดี (นำไปใช้ได้)" : "ควรปรับปรุงข้อสอบ",
+      ]);
+
+      // 5. Format Table
+      formatStyledTable(ws, {
+        startRow: tableStartRow,
+        columns,
+        data: rows,
+        statusColumnIndex: 9, // "สรุปคุณภาพข้อสอบ"
+        freezeHeader: true,
+      });
+
+      // 6. Download
       const timestamp = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(workbook, `รายงานวิเคราะห์ข้อสอบ_Item_Analysis_${timestamp}.xlsx`);
-      toast.success("ดาวน์โหลดรายงานวิเคราะห์ข้อสอบ (Excel) เรียบร้อยแล้ว");
+      await downloadWorkbook(wb, `รายงานวิเคราะห์ข้อสอบ_Item_Analysis_${timestamp}.xlsx`);
+      toast.success("ดาวน์โหลดรายงานวิเคราะห์ข้อสอบ (Excel) เรียบร้อยและสวยงาม");
     } catch (err) {
       console.error("Export error:", err);
       toast.error("เกิดข้อผิดพลาดในการดาวน์โหลด Excel");

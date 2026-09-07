@@ -266,7 +266,10 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
             )}
           </Link>
           <CourseSelector courses={courses} activeCourseId={activeCourseId} />
-          <ExportExcelButton students={students} />
+          <ExportExcelButton 
+            students={filteredStudents} 
+            courseTitle={courses?.find((c: any) => String(c.id) === String(activeCourseId))?.title} 
+          />
         </div>
       </div>
 

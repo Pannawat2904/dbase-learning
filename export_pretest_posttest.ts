@@ -159,22 +159,116 @@ async function exportPretestPosttest() {
     }
   });
 
-  // 5. ส่งออกเป็นไฟล์ Excel (.xlsx)
-  const workbook = XLSX.utils.book_new();
+  // 5. ส่งออกเป็นไฟล์ Excel (.xlsx) แบบจัดรูปแบบสวยงาม
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.default.Workbook();
+  workbook.creator = 'LMS Research System';
+  workbook.created = new Date();
 
   // Sheet 1: ข้อมูลคู่คะแนนทั้งหมด (All Students)
-  const sheetAll = XLSX.utils.json_to_sheet(pairedData);
-  XLSX.utils.book_append_sheet(workbook, sheetAll, 'ข้อมูลนักเรียนทั้งหมด');
+  const sheetAll = workbook.addWorksheet('ข้อมูลนักเรียนทั้งหมด', {
+    views: [{ showGridLines: true }],
+    properties: { tabColor: { argb: 'FF1E3A8A' } },
+  });
+
+  // Banner
+  sheetAll.addRow([]);
+  sheetAll.getRow(1).height = 10;
+  sheetAll.mergeCells(2, 1, 2, 11);
+  const tCell = sheetAll.getCell(2, 1);
+  tCell.value = '  รายงานข้อมูลคะแนน Pre-test และ Post-test สำหรับงานวิจัย';
+  tCell.font = { name: 'Arial', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+  tCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+  tCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+  sheetAll.mergeCells(3, 1, 3, 11);
+  const sCell = sheetAll.getCell(3, 1);
+  sCell.value = `  งานวิจัย: One Group Pretest-Posttest Design  |  นักเรียนทั้งหมด: ${pairedData.length} คน  |  คู่คะแนนสมบูรณ์: ${completePairsData.length} คน`;
+  sCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FFFFFFFF' } };
+  sCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
+  sCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+  sheetAll.addRow([]);
+  sheetAll.getRow(4).height = 12;
+
+  // Table Columns
+  const headers = [
+    'ลำดับ', 'รหัสผู้เรียน', 'ชื่อ-นามสกุล', 'อีเมล',
+    'คะแนนก่อนเรียน', 'คะแนนเต็ม', 'ร้อยละก่อนเรียน',
+    'คะแนนหลังเรียน', 'คะแนนเต็ม', 'ร้อยละหลังเรียน',
+    'คะแนนพัฒนาการ (Gain)'
+  ];
+  const headerRow = sheetAll.getRow(5);
+  headerRow.height = 28;
+  headers.forEach((h, idx) => {
+    const c = headerRow.getCell(idx + 1);
+    c.value = h;
+    c.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+    c.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+
+  // Table Data
+  pairedData.forEach((row, rIdx) => {
+    const r = sheetAll.getRow(6 + rIdx);
+    r.height = 22;
+    const isEven = rIdx % 2 === 0;
+    const bg = isEven ? 'FFFFFFFF' : 'FFF8FAFC';
+    const vals = [
+      rIdx + 1, row.student_id, row.student_name, row.email,
+      row.pretest_score, row.pretest_total, row.pretest_percent ? `${row.pretest_percent}%` : '-',
+      row.posttest_score, row.posttest_total, row.posttest_percent ? `${row.posttest_percent}%` : '-',
+      row.gain_score !== '' ? (Number(row.gain_score) >= 0 ? `+${row.gain_score}` : row.gain_score) : '-'
+    ];
+    vals.forEach((v, cIdx) => {
+      const cell = r.getCell(cIdx + 1);
+      cell.value = v;
+      cell.font = { name: 'Arial', size: 10, color: { argb: 'FF0F172A' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+      cell.alignment = { vertical: 'middle', horizontal: cIdx === 2 || cIdx === 3 ? 'left' : 'center' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      };
+    });
+  });
+
+  const widths = [8, 22, 28, 28, 16, 12, 16, 16, 12, 16, 20];
+  widths.forEach((w, idx) => {
+    sheetAll.getColumn(idx + 1).width = w;
+  });
 
   // Sheet 2: ข้อมูลเฉพาะคนที่ทำครบทั้ง Pre และ Post พร้อมเข้า SPSS (SPSS Ready Paired)
-  const sheetPaired = XLSX.utils.json_to_sheet(completePairsData);
-  XLSX.utils.book_append_sheet(workbook, sheetPaired, 'SPSS_Paired_Test');
+  const sheetPaired = workbook.addWorksheet('SPSS_Paired_Test', {
+    views: [{ showGridLines: true }],
+    properties: { tabColor: { argb: 'FF059669' } },
+  });
+
+  // Row 1: Simple SPSS-ready column names
+  const spssHeaders = ['student_id', 'student_name', 'email', 'pre_score', 'pre_total', 'pre_pct', 'post_score', 'post_total', 'post_pct', 'gain_score', 'gain_pct'];
+  sheetPaired.addRow(spssHeaders);
+  sheetPaired.getRow(1).font = { bold: true };
+
+  completePairsData.forEach(r => {
+    sheetPaired.addRow([
+      r.student_id, r.student_name, r.email,
+      r.pretest_score, r.pretest_total, r.pretest_percent,
+      r.posttest_score, r.posttest_total, r.posttest_percent,
+      r.gain_score, r.gain_percent
+    ]);
+  });
+
+  widths.forEach((w, idx) => {
+    sheetPaired.getColumn(idx + 1).width = w;
+  });
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const fileName = `pretest_posttest_paired_research_${timestamp}.xlsx`;
   const filePath = path.resolve(process.cwd(), fileName);
 
-  XLSX.writeFile(workbook, filePath);
+  await workbook.xlsx.writeFile(filePath);
 
   console.log(`\n✅ บันทึกไฟล์ Excel สำเร็จ: ${filePath}`);
   console.log(`📈 สรุปผลข้อมูลสำหรับงานวิจัย One Group Pretest-Posttest Design:`);

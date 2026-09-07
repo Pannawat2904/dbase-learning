@@ -1,6 +1,14 @@
 "use client";
 
 import * as XLSX from "xlsx";
+import {
+  createLMSWorkbook,
+  addHeaderBanner,
+  addKpiCards,
+  formatStyledTable,
+  downloadWorkbook,
+  ColumnDefinition,
+} from "@/utils/excel-styler";
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -33,7 +41,8 @@ import {
   Mail,
   Copy,
   CheckCheck,
-  Search
+  Search,
+  Loader2
 } from "lucide-react";
 import AutoRefresh from "@/components/admin/AutoRefresh";
 import SatisfactionCharts from "@/components/admin/SatisfactionCharts";
@@ -57,6 +66,7 @@ export default function AdminEvaluationPage() {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
   const [analytics, setAnalytics] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"builder" | "overview" | "items" | "suggestions" | "respondents" | "pending">("builder");
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   // Pending Students State
   const [pendingSearch, setPendingSearch] = useState("");
@@ -277,114 +287,278 @@ export default function AdminEvaluationPage() {
     setDimensions(template);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
       if (!analytics || analytics.totalRespondents === 0) {
         toast.warning("ยังไม่มีข้อมูลสำหรับส่งออก");
         return;
       }
+      setIsExportingExcel(true);
       
-      const wb = XLSX.utils.book_new();
-      
-      // 1. Overview Sheet
-      const overviewData = [
-        ["รายงานผลการประเมินความพึงพอใจ"],
-        ["จำนวนผู้ตอบประเมิน", `${analytics.totalRespondents} คน (คิดเป็น ${analytics.responseRate}%)`],
-        ["คะแนนเฉลี่ยรวม", analytics.overallMean],
-        ["ส่วนเบี่ยงเบนมาตรฐาน (SD)", analytics.overallSD],
-        ["ระดับความพึงพอใจภาพรวม", analytics.overallQuality],
-        [],
-        ["ผลการประเมินรายด้าน"],
-        ["ด้านที่", "หัวข้อการประเมิน", "ค่าเฉลี่ย", "SD", "ระดับความพึงพอใจ"]
-      ];
-      
+      const wb = createLMSWorkbook("รายงานผลการประเมินความพึงพอใจ");
       const dims = dimensions.length > 0 ? dimensions : (analytics?.dimensions || []);
-      dims.forEach((dim: any, idx: number) => {
-        const stat = analytics.dimensionStats?.[dim.id] || { mean: 0, sd: 0, quality: "-" };
-        overviewData.push([`ด้านที่ ${idx + 1}`, dim.title, stat.mean, stat.sd, stat.quality]);
+
+      // ----------------------------------------------------
+      // Sheet 1: ภาพรวม (Overview)
+      // ----------------------------------------------------
+      const wsOverview = wb.addWorksheet("ภาพรวม", {
+        views: [{ showGridLines: true }],
+        properties: { tabColor: { argb: "FF1E3A8A" } },
       });
-      
-      const overviewWs = XLSX.utils.aoa_to_sheet(overviewData);
-      XLSX.utils.book_append_sheet(wb, overviewWs, "ภาพรวม");
-      
-      // 2. Items Sheet
-      const itemsData = [
-        ["ผลการประเมินรายข้อ"],
-        ["หัวข้อ", "ค่าเฉลี่ย", "SD", "ระดับความพึงพอใจ"]
+
+      const nextRow1 = addHeaderBanner(wsOverview, {
+        title: "รายงานสรุปผลการประเมินความพึงพอใจการจัดการเรียนรู้ (Satisfaction Overview)",
+        subtitle: "ระบบการจัดการเรียนการสอนและประเมินผลออนไลน์ (LMS)",
+        infoList: [`จำนวนผู้ตอบประเมิน: ${analytics.totalRespondents} คน (คิดเป็น ${analytics.responseRate}%)`],
+        totalCols: 5,
+        theme: "navy",
+      });
+
+      const tableStartRow1 = addKpiCards(
+        wsOverview,
+        [
+          { label: "👥 ผู้ตอบประเมิน", value: `${analytics.totalRespondents} คน`, sublabel: `คิดเป็น ${analytics.responseRate}%`, colorType: "blue" },
+          { label: "⭐ คะแนนเฉลี่ยรวม", value: Number(analytics.overallMean || 0).toFixed(2), sublabel: "เต็ม 5.00 คะแนน", colorType: "emerald" },
+          { label: "📊 ส่วนเบี่ยงเบน (SD)", value: Number(analytics.overallSD || 0).toFixed(2), sublabel: "การกระจายของข้อมูล", colorType: "purple" },
+          { label: "🏆 ระดับความพึงพอใจ", value: String(analytics.overallQuality || "-"), sublabel: "ภาพรวมทั้งระบบ", colorType: "amber" },
+        ],
+        nextRow1
+      );
+
+      const overviewCols: ColumnDefinition[] = [
+        { header: "ด้านที่", width: 10, align: "center" },
+        { header: "หัวข้อด้านการประเมิน", width: 45, align: "left" },
+        { header: "ค่าเฉลี่ย (Mean)", width: 18, align: "right", numFmt: "0.00" },
+        { header: "ส่วนเบี่ยงเบน (SD)", width: 18, align: "right", numFmt: "0.00" },
+        { header: "ระดับความพึงพอใจ", width: 22, align: "center" },
       ];
-      
-      dims.forEach((dim: any) => {
-        (dim.items || []).forEach((item: any) => {
+
+      const overviewRows = dims.map((dim: any, idx: number) => {
+        const stat = analytics.dimensionStats?.[dim.id] || { mean: 0, sd: 0, quality: "-" };
+        return [
+          `ด้านที่ ${idx + 1}`,
+          dim.title,
+          Number(stat.mean) || 0,
+          Number(stat.sd) || 0,
+          stat.quality || "-",
+        ];
+      });
+
+      formatStyledTable(wsOverview, {
+        startRow: tableStartRow1,
+        columns: overviewCols,
+        data: overviewRows,
+        statusColumnIndex: 4,
+        freezeHeader: true,
+        hasTotalsRow: true,
+        totalsRowData: [
+          "สรุป",
+          "ค่าเฉลี่ยรวมทุกด้าน",
+          Number(analytics.overallMean) || 0,
+          Number(analytics.overallSD) || 0,
+          analytics.overallQuality || "-",
+        ],
+      });
+
+      // ----------------------------------------------------
+      // Sheet 2: รายข้อ (Items)
+      // ----------------------------------------------------
+      const wsItems = wb.addWorksheet("รายข้อ", {
+        views: [{ showGridLines: true }],
+        properties: { tabColor: { argb: "FF2563EB" } },
+      });
+
+      const nextRow2 = addHeaderBanner(wsItems, {
+        title: "ผลการประเมินความพึงพอใจรายข้อคำถาม (Item-by-Item Satisfaction Scores)",
+        subtitle: `จำนวนผู้ตอบประเมินทั้งหมด: ${analytics.totalRespondents} คน`,
+        totalCols: 6,
+        theme: "indigo",
+      });
+
+      const itemsCols: ColumnDefinition[] = [
+        { header: "ข้อที่", width: 10, align: "center" },
+        { header: "ด้านการประเมิน", width: 28, align: "left" },
+        { header: "ข้อคำถามการประเมิน", width: 55, align: "left", wrapText: true },
+        { header: "ค่าเฉลี่ย (Mean)", width: 16, align: "right", numFmt: "0.00" },
+        { header: "ส่วนเบี่ยงเบน (SD)", width: 16, align: "right", numFmt: "0.00" },
+        { header: "ระดับความพึงพอใจ", width: 20, align: "center" },
+      ];
+
+      const itemsRows: any[][] = [];
+      dims.forEach((dim: any, dIdx: number) => {
+        (dim.items || []).forEach((item: any, iIdx: number) => {
           const stat = analytics.itemStats?.[item.id] || { mean: 0, sd: 0, quality: "-" };
-          itemsData.push([item.text, stat.mean, stat.sd, stat.quality]);
+          itemsRows.push([
+            `${dIdx + 1}.${iIdx + 1}`,
+            dim.title,
+            item.text,
+            Number(stat.mean) || 0,
+            Number(stat.sd) || 0,
+            stat.quality || "-",
+          ]);
         });
       });
-      
-      const itemsWs = XLSX.utils.aoa_to_sheet(itemsData);
-      XLSX.utils.book_append_sheet(wb, itemsWs, "รายข้อ");
-      
-      // 3. Respondents Sheet
+
+      formatStyledTable(wsItems, {
+        startRow: nextRow2,
+        columns: itemsCols,
+        data: itemsRows,
+        statusColumnIndex: 5,
+        freezeHeader: true,
+      });
+
+      // ----------------------------------------------------
+      // Sheet 3: รายชื่อผู้ตอบ (Respondents)
+      // ----------------------------------------------------
       if (analytics.respondentsList && analytics.respondentsList.length > 0) {
-        const itemColumns: { id: string; label: string }[] = [];
+        const wsResp = wb.addWorksheet("รายชื่อผู้ตอบ", {
+          views: [{ showGridLines: true }],
+          properties: { tabColor: { argb: "FF059669" } },
+        });
+
+        const itemColumnsMeta: { id: string; label: string }[] = [];
         dims.forEach((dim: any, dimIdx: number) => {
           (dim.items || []).forEach((item: any, itemIdx: number) => {
-            itemColumns.push({
+            itemColumnsMeta.push({
               id: item.id,
-              label: `ข้อ ${dimIdx + 1}.${itemIdx + 1}`
+              label: `ข้อ ${dimIdx + 1}.${itemIdx + 1}`,
             });
           });
         });
-        
-        const respondentsData = analytics.respondentsList.map((r: any) => {
-          const row: any = {
-            "ชื่อ-นามสกุล": r.name,
-            "อีเมล": r.email,
-            "คะแนนเฉลี่ย": r.score,
-            "ระดับคุณภาพ": r.quality,
-            "วันที่ทำแบบประเมิน": r.submittedAt
-          };
-          
-          // Add score for each item
-          itemColumns.forEach(col => {
-            row[col.label] = r.ratings?.[col.id] || "-";
-          });
-          
-          return row;
+
+        const nextRow3 = addHeaderBanner(wsResp, {
+          title: "รายชื่อผู้ทำแบบประเมินและคะแนนรายบุคคล",
+          subtitle: `จำนวนผู้ตอบประเมิน: ${analytics.respondentsList.length} คน`,
+          totalCols: 6 + itemColumnsMeta.length,
+          theme: "emerald",
         });
-        const respondentsWs = XLSX.utils.json_to_sheet(respondentsData);
-        XLSX.utils.book_append_sheet(wb, respondentsWs, "รายชื่อผู้ตอบ");
+
+        const respCols: ColumnDefinition[] = [
+          { header: "ลำดับ", width: 8, align: "center" },
+          { header: "ชื่อ - นามสกุล", width: 28, align: "left" },
+          { header: "อีเมล", width: 28, align: "left" },
+          { header: "คะแนนเฉลี่ย", width: 14, align: "right", numFmt: "0.00" },
+          { header: "ระดับคุณภาพ", width: 18, align: "center" },
+          { header: "วันที่ทำแบบประเมิน", width: 22, align: "center" },
+          ...itemColumnsMeta.map(col => ({
+            header: col.label,
+            width: 10,
+            align: "center" as const,
+          })),
+        ];
+
+        const respRows = analytics.respondentsList.map((r: any, idx: number) => {
+          const rowVals: any[] = [
+            idx + 1,
+            r.name || "ไม่ระบุชื่อ",
+            r.email || "-",
+            Number(r.score) || 0,
+            r.quality || "-",
+            r.submittedAt || "-",
+          ];
+          itemColumnsMeta.forEach(col => {
+            rowVals.push(r.ratings?.[col.id] !== undefined ? r.ratings[col.id] : "-");
+          });
+          return rowVals;
+        });
+
+        formatStyledTable(wsResp, {
+          startRow: nextRow3,
+          columns: respCols,
+          data: respRows,
+          statusColumnIndex: 4,
+          freezeHeader: true,
+        });
       }
-      
-      // 4. Pending Students Sheet
+
+      // ----------------------------------------------------
+      // Sheet 4: รายชื่อผู้ยังไม่ประเมิน (Pending)
+      // ----------------------------------------------------
       if (analytics.pendingStudents && analytics.pendingStudents.length > 0) {
-        const pendingData = analytics.pendingStudents.map((p: any, idx: number) => ({
-          "ลำดับ": idx + 1,
-          "รหัสประจำตัว": p.studentIdNum || "-",
-          "ชื่อ-นามสกุล": p.name,
-          "อีเมล": p.email,
-          "สถานะ": "ยังไม่ทำแบบประเมิน"
-        }));
-        const pendingWs = XLSX.utils.json_to_sheet(pendingData);
-        XLSX.utils.book_append_sheet(wb, pendingWs, "รายชื่อผู้ยังไม่ประเมิน");
+        const wsPending = wb.addWorksheet("รายชื่อผู้ยังไม่ประเมิน", {
+          views: [{ showGridLines: true }],
+          properties: { tabColor: { argb: "FFD97706" } },
+        });
+
+        const nextRow4 = addHeaderBanner(wsPending, {
+          title: "รายชื่อนักศึกษาที่ยังไม่ได้ทำแบบประเมินความพึงพอใจ",
+          subtitle: `ยังไม่ประเมินจำนวน: ${analytics.pendingStudents.length} คน`,
+          totalCols: 5,
+          theme: "navy",
+        });
+
+        const pendingCols: ColumnDefinition[] = [
+          { header: "ลำดับ", width: 8, align: "center" },
+          { header: "รหัสประจำตัว", width: 18, align: "center" },
+          { header: "ชื่อ - นามสกุล", width: 28, align: "left" },
+          { header: "อีเมล", width: 28, align: "left" },
+          { header: "สถานะ", width: 22, align: "center" },
+        ];
+
+        const pendingRows = analytics.pendingStudents.map((p: any, idx: number) => [
+          idx + 1,
+          p.studentIdNum || "-",
+          p.name || "ไม่ระบุชื่อ",
+          p.email || "-",
+          "ยังไม่ทำแบบประเมิน",
+        ]);
+
+        formatStyledTable(wsPending, {
+          startRow: nextRow4,
+          columns: pendingCols,
+          data: pendingRows,
+          statusColumnIndex: 4,
+          freezeHeader: true,
+        });
       }
-      
-      // 5. Suggestions Sheet
+
+      // ----------------------------------------------------
+      // Sheet 5: ข้อเสนอแนะ (Suggestions)
+      // ----------------------------------------------------
       if (analytics.suggestions && analytics.suggestions.length > 0) {
-        const suggestionsData = analytics.suggestions.map((s: any) => ({
-          "ข้อเสนอแนะ": s.text,
-          "ผู้เสนอ": s.name,
-          "วันที่": s.date
-        }));
-        const suggestionsWs = XLSX.utils.json_to_sheet(suggestionsData);
-        XLSX.utils.book_append_sheet(wb, suggestionsWs, "ข้อเสนอแนะ");
+        const wsSug = wb.addWorksheet("ข้อเสนอแนะ", {
+          views: [{ showGridLines: true }],
+          properties: { tabColor: { argb: "FF7C3AED" } },
+        });
+
+        const nextRow5 = addHeaderBanner(wsSug, {
+          title: "ข้อเสนอแนะและความคิดเห็นเพิ่มเติมจากผู้เรียน",
+          subtitle: `จำนวนข้อเสนอแนะทั้งหมด: ${analytics.suggestions.length} รายการ`,
+          totalCols: 4,
+          theme: "indigo",
+        });
+
+        const sugCols: ColumnDefinition[] = [
+          { header: "ลำดับ", width: 8, align: "center" },
+          { header: "ข้อเสนอแนะ / ความคิดเห็น", width: 65, align: "left", wrapText: true },
+          { header: "ผู้เสนอแนะ", width: 24, align: "left" },
+          { header: "วันที่เสนอแนะ", width: 20, align: "center" },
+        ];
+
+        const sugRows = analytics.suggestions.map((s: any, idx: number) => [
+          idx + 1,
+          s.text || "-",
+          s.name || "ไม่ระบุชื่อ",
+          s.date || "-",
+        ]);
+
+        formatStyledTable(wsSug, {
+          startRow: nextRow5,
+          columns: sugCols,
+          data: sugRows,
+          freezeHeader: true,
+        });
       }
-      
+
       // Download
-      XLSX.writeFile(wb, `รายงานความพึงพอใจ_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success("ส่งออกไฟล์ Excel สำเร็จ");
+      const dateStr = new Date().toISOString().split("T")[0];
+      await downloadWorkbook(wb, `รายงานผลการประเมินความพึงพอใจ_${dateStr}.xlsx`);
+      toast.success("ส่งออกไฟล์ Excel สำเร็จ เรียบร้อยและสวยงาม");
     } catch (e) {
       console.error(e);
       toast.error("เกิดข้อผิดพลาดในการส่งออก Excel");
+    } finally {
+      setIsExportingExcel(false);
     }
   };
 
@@ -554,10 +728,15 @@ export default function AdminEvaluationPage() {
           </button>
           <button
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-md shadow-emerald-500/20 transition-all"
+            disabled={isExportingExcel}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 cursor-pointer"
           >
-            <Printer className="w-4 h-4" />
-            ส่งออก Excel
+            {isExportingExcel ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Printer className="w-4 h-4" />
+            )}
+            {isExportingExcel ? "กำลังส่งออก..." : "ส่งออก Excel"}
           </button>
 
           {/* Toggle Button */}
