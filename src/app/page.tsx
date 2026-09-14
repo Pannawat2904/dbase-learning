@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Sparkles, BrainCircuit, LineChart, ChevronRight, Play, User, Database, Server } from "lucide-react";
+import { BookOpen, Sparkles, BrainCircuit, LineChart, ChevronRight, Play, User, Database, Server, CheckCircle2, Award, TrendingUp } from "lucide-react";
 import { getSettings } from "@/utils/supabase/queries";
 
 export default async function Home() {
@@ -109,52 +109,106 @@ export default async function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Bento Card 1 - AI Tutor (Large) */}
-            <div className="md:col-span-2 min-h-[250px] vision-glass-panel vision-glass-hoverable p-8 flex flex-col justify-between group rounded-3xl overflow-hidden">
-              <div className="space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-inner">
-                  <BrainCircuit className="w-7 h-7" />
+            <div className="md:col-span-2 min-h-[290px] vision-glass-panel vision-glass-hoverable p-7 sm:p-8 flex flex-col justify-between group rounded-3xl overflow-hidden relative border border-blue-200/40 dark:border-blue-900/40">
+              <div className="space-y-4 z-10">
+                <div className="flex items-center justify-between">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-inner group-hover:scale-110 transition-transform">
+                    <BrainCircuit className="w-7 h-7" />
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 animate-pulse" />
+                    Google Gemini AI
+                  </span>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 dark:text-white">AI ผู้ช่วยสอน 24 ชม.</h3>
-                <p className="text-slate-600 dark:text-slate-300 text-lg max-w-md">
-                  ปรึกษาและไขข้อสงสัยเรื่องฐานข้อมูล ER-Diagram หรือโค้ด SQL ได้ทันทีผ่าน AI แชทบอทสุดฉลาด
-                </p>
+
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    AI ผู้ช่วยสอน 24 ชม.
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg mt-2 leading-relaxed max-w-xl">
+                    ปรึกษาและไขข้อสงสัยเรื่องการสร้างฟอร์ม (Form), รายงาน (Report), การตั้งค่าคอนโทรล Bound/Unbound และการใช้โปรแกรม Microsoft Access ได้ทันทีผ่าน <strong className="text-blue-600 dark:text-blue-400 font-semibold">&ldquo;น้องบอท&rdquo;</strong> ตลอด 24 ชั่วโมง
+                  </p>
+                </div>
+
+                {/* Micro Feature Chips */}
+                <div className="pt-1 flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-700 dark:text-slate-300 backdrop-blur-sm shadow-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    <span>ถามข้อสงสัยเรื่องฟอร์ม & รายงาน</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/50 dark:border-blue-800/50 text-xs text-blue-700 dark:text-blue-300 backdrop-blur-sm">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                    <span>แนะนำแนวทางทำใบงานปฏิบัติ</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300 backdrop-blur-sm">
+                    <span>💡 ตอบตรงตามหลักสูตร 21910-2012</span>
+                  </div>
+                </div>
               </div>
-              <div className="absolute right-0 bottom-0 opacity-10 group-hover:opacity-20 transition-opacity transform translate-x-1/4 translate-y-1/4">
+
+              {/* Decorative watermark */}
+              <div className="absolute right-0 bottom-0 opacity-10 group-hover:opacity-20 transition-opacity transform translate-x-1/4 translate-y-1/4 pointer-events-none">
                 <BrainCircuit className="w-64 h-64 text-blue-600" />
               </div>
             </div>
 
-            {/* Bento Card 2 - Step by Step */}
-            <div className="min-h-[250px] vision-glass-panel vision-glass-hoverable p-8 flex flex-col justify-between group rounded-3xl overflow-hidden">
-              <div className="space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-inner">
-                  <BookOpen className="w-7 h-7" />
+            {/* Bento Card 2 - Step by Step Curriculum */}
+            <div className="min-h-[290px] vision-glass-panel vision-glass-hoverable p-7 sm:p-8 flex flex-col justify-between group rounded-3xl overflow-hidden relative border border-sky-200/40 dark:border-sky-900/40">
+              <div className="space-y-4 z-10">
+                <div className="flex items-center justify-between">
+                  <div className="w-14 h-14 rounded-2xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-inner group-hover:scale-110 transition-transform">
+                    <BookOpen className="w-7 h-7" />
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/60 shadow-sm">
+                    21 กิจกรรมการเรียนรู้
+                  </span>
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">บทเรียนและแบบทดสอบ</h3>
-                <p className="text-slate-600 dark:text-slate-300">
-                  เนื้อหาครอบคลุมวิชาโปรแกรมฐานข้อมูล พร้อมแบบทดสอบเพื่อวัดความเข้าใจของคุณ
-                </p>
+
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">
+                    บทเรียน & แบบทดสอบ
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base mt-2 leading-relaxed">
+                    ครอบคลุมเนื้อหาบทที่ 6 (การสร้างฟอร์ม) และบทที่ 7 (การสร้างรายงาน) ใน Microsoft Access พร้อมสไลด์ วิดีโอ ใบงาน และแบบทดสอบ
+                  </p>
+                </div>
+
+                {/* Curriculum Badges */}
+                <div className="space-y-1.5 pt-1 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-sky-100 dark:border-sky-900/40">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span>บทที่ 6 การสร้างฟอร์ม (Form) & ใบงานที่ 6</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-sky-100 dark:border-sky-900/40">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span>บทที่ 7 การสร้างรายงาน (Report) & ใบงานที่ 7</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-sky-100 dark:border-sky-900/40">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span>แบบทดสอบ Pre/Post-test พร้อมระบบกันโกง</span>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Bento Card 3 - Analytics */}
-            <div className="md:col-span-3 min-h-[250px] vision-glass-panel vision-glass-hoverable p-8 flex flex-col md:flex-row items-center justify-between gap-8 group rounded-3xl overflow-hidden">
+            <div className="md:col-span-3 min-h-[220px] vision-glass-panel vision-glass-hoverable p-8 flex flex-col md:flex-row items-center justify-between gap-8 group rounded-3xl overflow-hidden">
               <div className="space-y-4 max-w-xl">
                 <div className="w-14 h-14 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner">
                   <LineChart className="w-7 h-7" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-800 dark:text-white">ติดตามความคืบหน้าแบบ Real-time</h3>
                 <p className="text-slate-600 dark:text-slate-300 text-lg">
-                  ดูผลคะแนนและเปอร์เซ็นต์การเรียนรู้ของคุณผ่านแดชบอร์ดที่สรุปผลได้ชัดเจนและเข้าใจง่าย
+                  ดูผลคะแนนแบบทดสอบ เปอร์เซ็นต์การเรียนรู้ และสถานะการตรวจใบงานของคุณผ่านแดชบอร์ดที่สรุปผลได้ชัดเจนและเข้าใจง่าย
                 </p>
               </div>
               <div className="w-full md:w-1/3 h-32 rounded-xl bg-gradient-to-r from-blue-100/50 to-indigo-100/50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-white/20 flex items-end justify-between p-4 overflow-hidden relative">
                 {/* Decorative Chart Bars */}
-                <div className="w-1/6 bg-blue-400/80 h-[40%] rounded-t-sm"></div>
-                <div className="w-1/6 bg-sky-400/80 h-[70%] rounded-t-sm"></div>
-                <div className="w-1/6 bg-indigo-400/80 h-[50%] rounded-t-sm"></div>
-                <div className="w-1/6 bg-blue-500/80 h-[90%] rounded-t-sm"></div>
-                <div className="w-1/6 bg-sky-500/80 h-[100%] rounded-t-sm"></div>
+                <div className="w-1/6 bg-blue-400/80 h-[40%] rounded-t-sm transition-all duration-500 group-hover:h-[50%]"></div>
+                <div className="w-1/6 bg-sky-400/80 h-[70%] rounded-t-sm transition-all duration-500 group-hover:h-[80%]"></div>
+                <div className="w-1/6 bg-indigo-400/80 h-[50%] rounded-t-sm transition-all duration-500 group-hover:h-[60%]"></div>
+                <div className="w-1/6 bg-blue-500/80 h-[90%] rounded-t-sm transition-all duration-500 group-hover:h-[95%]"></div>
+                <div className="w-1/6 bg-sky-500/80 h-[100%] rounded-t-sm transition-all duration-500 group-hover:h-[100%]"></div>
               </div>
             </div>
             
