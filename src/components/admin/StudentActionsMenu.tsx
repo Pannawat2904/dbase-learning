@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, BarChart, BookOpen, Send, RotateCcw, Trash2, X, Check, LockOpen, ShieldAlert, Award, Eye, EyeOff } from "lucide-react";
-import { sendChatMessage, deleteExamScore, resetStudentProgress, deleteStudentProfile, resetStudentAssignments, unlockExamScore, getStudentExamViolations } from "@/utils/supabase/queries";
+import { MoreHorizontal, BarChart, BookOpen, Send, RotateCcw, Trash2, X, Check, LockOpen, ShieldAlert, Award, Eye, EyeOff, FileEdit } from "lucide-react";
+import { sendChatMessage, deleteExamScore, resetStudentProgress, deleteStudentProfile, resetStudentAssignments, unlockExamScore, getStudentExamViolations, getStudentGradedAssignments, updateGradedAssignmentScore } from "@/utils/supabase/queries";
 import { VIOLATION_TYPE_CONFIG, type ViolationType } from "@/utils/exam-integrity";
 import { toggleHiddenStudent } from "@/app/admin/students/actions";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,12 @@ export default function StudentActionsMenu({ student }: { student: any }) {
   
   const [violations, setViolations] = useState<any[]>([]);
   const [isFetchingViolations, setIsFetchingViolations] = useState(false);
+  
+  const [isEditAssignmentOpen, setIsEditAssignmentOpen] = useState(false);
+  const [gradedAssignments, setGradedAssignments] = useState<any[]>([]);
+  const [isFetchingAssignments, setIsFetchingAssignments] = useState(false);
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
+  const [editScoreValue, setEditScoreValue] = useState<string>("");
   
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -54,6 +60,19 @@ export default function StudentActionsMenu({ student }: { student: any }) {
     }
   }, [isProgressOpen, student.id]);
 
+  // Fetch graded assignments when edit modal opens
+  useEffect(() => {
+    if (isEditAssignmentOpen && student.id) {
+      const fetchAssignments = async () => {
+        setIsFetchingAssignments(true);
+        const data = await getStudentGradedAssignments(student.id);
+        setGradedAssignments(data || []);
+        setIsFetchingAssignments(false);
+      };
+      fetchAssignments();
+    }
+  }, [isEditAssignmentOpen, student.id]);
+
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -82,6 +101,24 @@ export default function StudentActionsMenu({ student }: { student: any }) {
       }, 2000);
     } else {
       toast.error("เกิดข้อผิดพลาด ไม่สามารถส่งข้อความได้");
+    }
+  };
+
+  const handleSaveScore = async (assignmentId: string) => {
+    if (!editScoreValue) return;
+    
+    const toastId = toast.loading("กำลังบันทึกคะแนน...");
+    const success = await updateGradedAssignmentScore(assignmentId, Number(editScoreValue));
+    
+    if (success) {
+      toast.success("บันทึกคะแนนสำเร็จ!", { id: toastId });
+      setEditingAssignmentId(null);
+      // refetch
+      const data = await getStudentGradedAssignments(student.id);
+      setGradedAssignments(data || []);
+      router.refresh();
+    } else {
+      toast.error("เกิดข้อผิดพลาดในการบันทึกคะแนน", { id: toastId });
     }
   };
 
@@ -284,6 +321,19 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                   ให้ทำ Post-test ใหม่
                 </button>
               )}
+
+              <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
+              
+              <button 
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsEditAssignmentOpen(true);
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-colors whitespace-nowrap"
+              >
+                <FileEdit className="w-4 h-4 text-blue-500 shrink-0" />
+                แก้ไขคะแนนใบงาน
+              </button>
 
               <button 
                 onClick={() => {
@@ -492,6 +542,113 @@ export default function StudentActionsMenu({ student }: { student: any }) {
                     ส่งข้อความ
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Assignment Scores Modal */}
+      {isEditAssignmentOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <FileEdit className="w-5 h-5 text-blue-500" />
+                แก้ไขคะแนนใบงานของ {student.name}
+              </h3>
+              <button 
+                onClick={() => {
+                  setIsEditAssignmentOpen(false);
+                  setEditingAssignmentId(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              {isFetchingAssignments ? (
+                <div className="text-center py-8">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-slate-500">กำลังโหลดข้อมูลใบงาน...</p>
+                </div>
+              ) : gradedAssignments.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <Check className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-500">นักเรียนยังไม่มีใบงานที่ถูกตรวจให้คะแนน</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {gradedAssignments.map((assignment: any) => (
+                    <div key={assignment.id} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col gap-3">
+                      <div>
+                        <h4 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-slate-400" />
+                          {assignment.lesson?.title || "ไม่ระบุบทเรียน"}
+                        </h4>
+                        <div className="flex justify-between items-center mt-1">
+                          <p className="text-xs text-slate-500">
+                            ส่งเมื่อ: {new Date(assignment.submitted_at).toLocaleDateString('th-TH')} {new Date(assignment.submitted_at).toLocaleTimeString('th-TH')}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          คะแนนเดิม: <span className="text-blue-600 dark:text-blue-400 font-bold ml-1">{assignment.score}</span>
+                        </div>
+                        
+                        {editingAssignmentId === assignment.id ? (
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number"
+                              min="0"
+                              value={editScoreValue}
+                              onChange={(e) => setEditScoreValue(e.target.value)}
+                              className="w-16 px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            <button 
+                              onClick={() => handleSaveScore(assignment.id)}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              บันทึก
+                            </button>
+                            <button 
+                              onClick={() => setEditingAssignmentId(null)}
+                              className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-medium rounded transition-colors"
+                            >
+                              ยกเลิก
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              setEditingAssignmentId(assignment.id);
+                              setEditScoreValue(assignment.score?.toString() || "");
+                            }}
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                          >
+                            <FileEdit className="w-3.5 h-3.5" /> แก้ไขคะแนน
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 shrink-0">
+              <button 
+                onClick={() => {
+                  setIsEditAssignmentOpen(false);
+                  setEditingAssignmentId(null);
+                }}
+                className="w-full py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors shadow-sm"
+              >
+                ปิดหน้าต่าง
               </button>
             </div>
           </div>

@@ -1725,3 +1725,34 @@ export async function getSurveyAnalytics() {
   }
 }
 
+
+export async function getStudentGradedAssignments(studentId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('student_assignments')
+    .select('*, lesson:lessons(id, title)')
+    .eq('student_id', studentId)
+    .not('score', 'is', null)
+    .order('submitted_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching graded assignments:', error);
+    return [];
+  }
+  return data;
+}
+
+export async function updateGradedAssignmentScore(assignmentId: string, newScore: number) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('student_assignments')
+    .update({ score: newScore })
+    .eq('id', assignmentId);
+
+  if (error) {
+    console.error('Error updating graded assignment score:', error);
+    return false;
+  }
+  return true;
+}
