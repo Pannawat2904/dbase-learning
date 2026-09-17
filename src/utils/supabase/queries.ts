@@ -1462,7 +1462,7 @@ export async function submitSatisfactionSurvey(studentId: string, payload: {
         course_id: '1',
         lesson_id: '1',
         exam_type: 'satisfaction_survey',
-        score: Math.round(payload.overallAverage),
+        score: Number(payload.overallAverage.toFixed(2)),
         total_score: 5,
         status: 'submitted',
         answers: {
@@ -1554,10 +1554,24 @@ export async function getSurveyAnalytics() {
 
     // Helper functions for statistics
     const calculateStats = (numbers: number[]) => {
-      if (numbers.length === 0) return { mean: 0, sd: 0 };
-      const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
-      const variance = numbers.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (numbers.length > 1 ? numbers.length - 1 : 1);
-      const sd = numbers.length > 1 ? Math.sqrt(variance) : 0;
+      const validNumbers = numbers.filter((n) => Number.isFinite(n));
+
+      if (validNumbers.length === 0) {
+        return { mean: 0, sd: 0 };
+      }
+
+      const mean = validNumbers.reduce((sum, n) => sum + n, 0) / validNumbers.length;
+
+      if (validNumbers.length === 1) {
+        return {
+          mean: Number(mean.toFixed(2)),
+          sd: 0
+        };
+      }
+
+      const variance = validNumbers.reduce((sum, n) => sum + Math.pow(n - mean, 2), 0) / (validNumbers.length - 1);
+      const sd = Math.sqrt(variance);
+
       return {
         mean: Number(mean.toFixed(2)),
         sd: Number(sd.toFixed(2))
@@ -1565,10 +1579,10 @@ export async function getSurveyAnalytics() {
     };
 
     const getQualityLabel = (mean: number) => {
-      if (mean >= 4.50) return { text: 'มากที่สุด', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400' };
-      if (mean >= 3.50) return { text: 'มาก', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400' };
-      if (mean >= 2.50) return { text: 'ปานกลาง', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400' };
-      if (mean >= 1.50) return { text: 'น้อย', color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/30 dark:text-orange-400' };
+      if (mean >= 4.51) return { text: 'มากที่สุด', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400' };
+      if (mean >= 3.51) return { text: 'มาก', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400' };
+      if (mean >= 2.51) return { text: 'ปานกลาง', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400' };
+      if (mean >= 1.51) return { text: 'น้อย', color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/30 dark:text-orange-400' };
       return { text: 'น้อยที่สุด', color: 'text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400' };
     };
 
@@ -1583,7 +1597,7 @@ export async function getSurveyAnalytics() {
     const respondentsList = responses.map(r => {
       const ans = (r.answers as any) || {};
       const student = profileMap.get(r.student_id);
-      const score = Number(r.score || ans.overallAverage || 0);
+      const score = Number(ans.overallAverage ?? r.score ?? 0);
       allOverallScores.push(score);
 
       if (ans.ratings) {
