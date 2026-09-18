@@ -66,7 +66,7 @@ export function addHeaderBanner(
     subtitle?: string;
     infoList?: string[];
     totalCols: number;
-    theme?: "navy" | "emerald" | "indigo";
+    theme?: "navy" | "emerald" | "indigo" | "amber" | "blue" | "purple";
   }
 ): number {
   const { title, subtitle, infoList = [], totalCols, theme = "navy" } = options;
@@ -75,6 +75,9 @@ export function addHeaderBanner(
   const bgGradientColor = 
     theme === "emerald" ? EXCEL_THEME.colors.emeraldDark :
     theme === "indigo" ? "312E81" : 
+    theme === "amber" ? "D97706" :
+    theme === "blue" ? "2563EB" :
+    theme === "purple" ? "7C3AED" :
     EXCEL_THEME.colors.primaryDark;
 
   // Row 1: Spacing

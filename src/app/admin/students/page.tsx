@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import StudentActionsMenu from "@/components/admin/StudentActionsMenu";
 import AutoRefresh from "@/components/admin/AutoRefresh";
 import ExportExcelButton from "@/components/admin/ExportExcelButton";
+import ExportResearchReportButton from "@/components/admin/ExportResearchReportButton";
 import CourseSelector from "@/components/admin/CourseSelector";
 import StudentSearchAndSort from "@/components/admin/StudentSearchAndSort";
 
@@ -267,6 +268,10 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
           </Link>
           <CourseSelector courses={courses} activeCourseId={activeCourseId} />
           <ExportExcelButton 
+            students={filteredStudents} 
+            courseTitle={courses?.find((c: any) => String(c.id) === String(activeCourseId))?.title} 
+          />
+          <ExportResearchReportButton 
             students={filteredStudents} 
             courseTitle={courses?.find((c: any) => String(c.id) === String(activeCourseId))?.title} 
           />
