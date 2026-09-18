@@ -140,7 +140,7 @@ export function addKpiCards(
   ws: ExcelJS.Worksheet,
   cards: Array<{
     label: string;
-    value: string | number;
+    value: string | number | any;
     sublabel?: string;
     colorType?: "blue" | "emerald" | "amber" | "purple";
   }>,

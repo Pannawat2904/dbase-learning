@@ -298,6 +298,48 @@ export default function AdminEvaluationPage() {
       const wb = createLMSWorkbook("รายงานผลการประเมินความพึงพอใจ");
       const dims = dimensions.length > 0 ? dimensions : (analytics?.dimensions || []);
 
+      const getColLetter = (colIndex: number) => {
+        let temp = colIndex;
+        let letter = '';
+        while (temp > 0) {
+          const mod = (temp - 1) % 26;
+          letter = String.fromCharCode(65 + mod) + letter;
+          temp = Math.floor((temp - 1) / 26);
+        }
+        return letter;
+      };
+
+      // Calculate column mappings for Sheet 3 (Respondents)
+      const dataStartRow = 6;
+      const dataEndRow = 5 + (analytics.respondentsList?.length || 0);
+      const isDataEmpty = !analytics.respondentsList || analytics.respondentsList.length === 0;
+
+      let currentColIdx = 7; // Starts after ลำดับ, ชื่อ, อีเมล, คะแนนเฉลี่ย, ระดับคุณภาพ, วันที่
+      const itemCols: Record<string, string> = {}; 
+      const dimCols: Record<string, { start: string, end: string, avgCol: string }> = {}; 
+
+      dims.forEach((dim: any) => {
+        const dimStartCol = getColLetter(currentColIdx);
+        let dimEndCol = dimStartCol;
+        
+        (dim.items || []).forEach((item: any) => {
+          const letter = getColLetter(currentColIdx);
+          itemCols[item.id] = letter;
+          dimEndCol = letter;
+          currentColIdx++;
+        });
+
+        dimCols[dim.id] = { start: dimStartCol, end: dimEndCol, avgCol: '' };
+      });
+
+      const firstItemCol = getColLetter(7);
+      const lastItemCol = getColLetter(currentColIdx > 7 ? currentColIdx - 1 : 7);
+
+      dims.forEach((dim: any) => {
+        dimCols[dim.id].avgCol = getColLetter(currentColIdx);
+        currentColIdx++;
+      });
+
       // ----------------------------------------------------
       // Sheet 1: ภาพรวม (Overview)
       // ----------------------------------------------------
@@ -318,8 +360,8 @@ export default function AdminEvaluationPage() {
         wsOverview,
         [
           { label: "👥 ผู้ตอบประเมิน", value: `${analytics.totalRespondents} คน`, sublabel: `คิดเป็น ${analytics.responseRate}%`, colorType: "blue" },
-          { label: "⭐ คะแนนเฉลี่ยรวม", value: Number(analytics.overallMean || 0).toFixed(2), sublabel: "เต็ม 5.00 คะแนน", colorType: "emerald" },
-          { label: "📊 ส่วนเบี่ยงเบน (SD)", value: Number(analytics.overallSD || 0).toFixed(2), sublabel: "การกระจายของข้อมูล", colorType: "purple" },
+          { label: "⭐ คะแนนเฉลี่ยรวม", value: isDataEmpty ? 0 : { formula: `ROUND(IFERROR(AVERAGE('รายชื่อผู้ตอบ'!D${dataStartRow}:D${dataEndRow}), 0), 2)` }, sublabel: "เต็ม 5.00 คะแนน", colorType: "emerald" },
+          { label: "📊 ส่วนเบี่ยงเบน (SD)", value: isDataEmpty ? 0 : { formula: `ROUND(IFERROR(STDEV.S('รายชื่อผู้ตอบ'!D${dataStartRow}:D${dataEndRow}), 0), 2)` }, sublabel: "การกระจายของข้อมูล", colorType: "purple" },
           { label: "🏆 ระดับความพึงพอใจ", value: String(analytics.overallQuality || "-"), sublabel: "ภาพรวมทั้งระบบ", colorType: "amber" },
         ],
         nextRow1
@@ -335,11 +377,15 @@ export default function AdminEvaluationPage() {
 
       const overviewRows = dims.map((dim: any, idx: number) => {
         const stat = analytics.dimensionStats?.[dim.id] || { mean: 0, sd: 0, quality: "-" };
+        
+        const meanVal = isDataEmpty ? 0 : { formula: `IFERROR(AVERAGE('รายชื่อผู้ตอบ'!${dimCols[dim.id].avgCol}${dataStartRow}:${dimCols[dim.id].avgCol}${dataEndRow}), 0)` };
+        const sdVal = isDataEmpty ? 0 : { formula: `IFERROR(STDEV.S('รายชื่อผู้ตอบ'!${dimCols[dim.id].avgCol}${dataStartRow}:${dimCols[dim.id].avgCol}${dataEndRow}), 0)` };
+
         return [
           `ด้านที่ ${idx + 1}`,
           dim.title,
-          Number(stat.mean) || 0,
-          Number(stat.sd) || 0,
+          meanVal,
+          sdVal,
           stat.quality || "-",
         ];
       });
@@ -354,8 +400,8 @@ export default function AdminEvaluationPage() {
         totalsRowData: [
           "สรุป",
           "ค่าเฉลี่ยรวมทุกด้าน",
-          Number(analytics.overallMean) || 0,
-          Number(analytics.overallSD) || 0,
+          isDataEmpty ? 0 : { formula: `IFERROR(AVERAGE('รายชื่อผู้ตอบ'!D${dataStartRow}:D${dataEndRow}), 0)` },
+          isDataEmpty ? 0 : { formula: `IFERROR(STDEV.S('รายชื่อผู้ตอบ'!D${dataStartRow}:D${dataEndRow}), 0)` },
           analytics.overallQuality || "-",
         ],
       });
@@ -388,12 +434,14 @@ export default function AdminEvaluationPage() {
       dims.forEach((dim: any, dIdx: number) => {
         (dim.items || []).forEach((item: any, iIdx: number) => {
           const stat = analytics.itemStats?.[item.id] || { mean: 0, sd: 0, quality: "-" };
+          const colLetter = itemCols[item.id];
+
           itemsRows.push([
             `${dIdx + 1}.${iIdx + 1}`,
             dim.title,
             item.text,
-            Number(stat.mean) || 0,
-            Number(stat.sd) || 0,
+            isDataEmpty ? 0 : { formula: `IFERROR(AVERAGE('รายชื่อผู้ตอบ'!${colLetter}${dataStartRow}:${colLetter}${dataEndRow}), 0)` },
+            isDataEmpty ? 0 : { formula: `IFERROR(STDEV.S('รายชื่อผู้ตอบ'!${colLetter}${dataStartRow}:${colLetter}${dataEndRow}), 0)` },
             stat.quality || "-",
           ]);
         });
@@ -445,19 +493,31 @@ export default function AdminEvaluationPage() {
             width: 10,
             align: "center" as const,
           })),
+          ...dims.map((dim: any, idx: number) => ({
+            header: `คะแนนเฉลี่ยด้านที่ ${idx + 1}`,
+            width: 18,
+            align: "right" as const,
+            numFmt: "0.00"
+          }))
         ];
 
         const respRows = analytics.respondentsList.map((r: any, idx: number) => {
+          const rowNum = dataStartRow + idx;
           const rowVals: any[] = [
             idx + 1,
             r.name || "ไม่ระบุชื่อ",
             r.email || "-",
-            Number(r.score) || 0,
+            { formula: `IFERROR(AVERAGE(${firstItemCol}${rowNum}:${lastItemCol}${rowNum}), 0)` },
             r.quality || "-",
             r.submittedAt || "-",
           ];
           itemColumnsMeta.forEach(col => {
-            rowVals.push(r.ratings?.[col.id] !== undefined ? r.ratings[col.id] : "-");
+            rowVals.push(r.ratings?.[col.id] !== undefined ? r.ratings[col.id] : "");
+          });
+          dims.forEach((dim: any) => {
+            const startCol = dimCols[dim.id].start;
+            const endCol = dimCols[dim.id].end;
+            rowVals.push({ formula: `IFERROR(AVERAGE(${startCol}${rowNum}:${endCol}${rowNum}), 0)` });
           });
           return rowVals;
         });
