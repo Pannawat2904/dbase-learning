@@ -158,7 +158,7 @@ export default function ExportResearchReportButton({ allCoursesData = [] }: Expo
       };
 
       surveyDims.forEach((dim: any, dIdx: number) => {
-        dim.questions.forEach((q: any, qIdx: number) => {
+        (dim.questions || []).forEach((q: any, qIdx: number) => {
           surveyCols.push({ header: `ข้อ ${dIdx+1}.${qIdx+1}\n${q.text}`, width: 15, align: "center", wrapText: true, isNumber: true });
           questionCols[q.id] = getColLetter(colIdx - 1);
           colIdx++;
@@ -176,21 +176,29 @@ export default function ExportResearchReportButton({ allCoursesData = [] }: Expo
         
         surveyDims.forEach((dim: any) => {
           const dimQCols: string[] = [];
-          dim.questions.forEach((q: any) => {
-            const val = sub.ratings[q.id] || 0;
+          (dim.questions || []).forEach((q: any) => {
+            const val = (sub.ratings && sub.ratings[q.id]) || 0;
             rowData.push(val);
             dimQCols.push(`${questionCols[q.id]}${rowNum}`);
           });
           // Dimension average formula
-          rowData.push({ formula: `IFERROR(AVERAGE(${dimQCols.join(',')}), 0)` });
+          if (dimQCols.length > 0) {
+            rowData.push({ formula: `IFERROR(AVERAGE(${dimQCols.join(',')}), 0)` });
+          } else {
+            rowData.push(0);
+          }
         });
         
         // Overall average formula
         const dimAvgCols = surveyDims.map((_: any, dIdx: number) => {
-          const qCount = surveyDims.slice(0, dIdx + 1).reduce((acc: number, d: any) => acc + d.questions.length + 1, 0);
+          const qCount = surveyDims.slice(0, dIdx + 1).reduce((acc: number, d: any) => acc + (d.questions ? d.questions.length : 0) + 1, 0);
           return `${getColLetter(2 + qCount)}${rowNum}`;
         });
-        rowData.push({ formula: `IFERROR(AVERAGE(${dimAvgCols.join(',')}), 0)` });
+        if (dimAvgCols.length > 0) {
+          rowData.push({ formula: `IFERROR(AVERAGE(${dimAvgCols.join(',')}), 0)` });
+        } else {
+          rowData.push(0);
+        }
 
         return rowData;
       });
@@ -334,28 +342,30 @@ export default function ExportResearchReportButton({ allCoursesData = [] }: Expo
       
       let sumRowIdx = nextRow + 1;
       surveyDims.forEach((dim: any, dIdx: number) => {
-        surveySumRows.push([
-          `ด้านที่ ${dIdx+1}`,
-          dim.title,
-          submissions.length,
-          { formula: `IFERROR(AVERAGE(${surveyRawName}!${questionCols[dim.questions[0].id]}${surveyDataStartRow}:${questionCols[dim.questions[dim.questions.length-1].id]}${surveyDataEndRow}), 0)` },
-          { formula: `IFERROR(STDEV.S(${surveyRawName}!${questionCols[dim.questions[0].id]}${surveyDataStartRow}:${questionCols[dim.questions[dim.questions.length-1].id]}${surveyDataEndRow}), 0)` },
-          { formula: `IF(D${sumRowIdx}>=4.51, "มากที่สุด", IF(D${sumRowIdx}>=3.51, "มาก", IF(D${sumRowIdx}>=2.51, "ปานกลาง", IF(D${sumRowIdx}>=1.51, "น้อย", "น้อยที่สุด"))))` }
-        ]);
-        sumRowIdx++;
-
-        dim.questions.forEach((q: any, qIdx: number) => {
-          const cLet = questionCols[q.id];
+        if (dim.questions && dim.questions.length > 0) {
           surveySumRows.push([
-            `${dIdx+1}.${qIdx+1}`,
-            q.text,
+            `ด้านที่ ${dIdx+1}`,
+            dim.title,
             submissions.length,
-            { formula: `IFERROR(AVERAGE(${surveyRawName}!${cLet}${surveyDataStartRow}:${cLet}${surveyDataEndRow}), 0)` },
-            { formula: `IFERROR(STDEV.S(${surveyRawName}!${cLet}${surveyDataStartRow}:${cLet}${surveyDataEndRow}), 0)` },
+            { formula: `IFERROR(AVERAGE(${surveyRawName}!${questionCols[dim.questions[0].id]}${surveyDataStartRow}:${questionCols[dim.questions[dim.questions.length-1].id]}${surveyDataEndRow}), 0)` },
+            { formula: `IFERROR(STDEV.S(${surveyRawName}!${questionCols[dim.questions[0].id]}${surveyDataStartRow}:${questionCols[dim.questions[dim.questions.length-1].id]}${surveyDataEndRow}), 0)` },
             { formula: `IF(D${sumRowIdx}>=4.51, "มากที่สุด", IF(D${sumRowIdx}>=3.51, "มาก", IF(D${sumRowIdx}>=2.51, "ปานกลาง", IF(D${sumRowIdx}>=1.51, "น้อย", "น้อยที่สุด"))))` }
           ]);
           sumRowIdx++;
-        });
+
+          dim.questions.forEach((q: any, qIdx: number) => {
+            const cLet = questionCols[q.id];
+            surveySumRows.push([
+              `${dIdx+1}.${qIdx+1}`,
+              q.text,
+              submissions.length,
+              { formula: `IFERROR(AVERAGE(${surveyRawName}!${cLet}${surveyDataStartRow}:${cLet}${surveyDataEndRow}), 0)` },
+              { formula: `IFERROR(STDEV.S(${surveyRawName}!${cLet}${surveyDataStartRow}:${cLet}${surveyDataEndRow}), 0)` },
+              { formula: `IF(D${sumRowIdx}>=4.51, "มากที่สุด", IF(D${sumRowIdx}>=3.51, "มาก", IF(D${sumRowIdx}>=2.51, "ปานกลาง", IF(D${sumRowIdx}>=1.51, "น้อย", "น้อยที่สุด"))))` }
+            ]);
+            sumRowIdx++;
+          });
+        }
       });
 
       formatStyledTable(wsSurveySum, {
@@ -369,9 +379,9 @@ export default function ExportResearchReportButton({ allCoursesData = [] }: Expo
 
       await downloadWorkbook(wb, fileName);
       toast.success("ส่งออกรายงานสรุปงานวิจัยสำเร็จ");
-    } catch (e) {
+    } catch (e: any) {
       console.error("Export failed:", e);
-      toast.error("เกิดข้อผิดพลาดในการสร้างไฟล์รายงานวิจัย");
+      toast.error(`เกิดข้อผิดพลาด: ${e.message || "ในการสร้างไฟล์รายงานวิจัย"}`);
     } finally {
       setIsExporting(false);
     }
