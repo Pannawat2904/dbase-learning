@@ -49,143 +49,143 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
   
   const activeCourseId = searchParams.course || courses[0]?.id?.toString();
   
-  const courseModuleIds = new Set(allDbModules?.filter(m => String(m.course_id) === String(activeCourseId)).map(m => String(m.id)) || []);
-  const courseLessons = allDbLessons?.filter(l => courseModuleIds.has(String(l.module_id))) || [];
-  const courseLessonIds = new Set(courseLessons.map(l => String(l.id)));
-  const totalLessons = courseLessons.length || 1;
 
-  const nowTime = Date.now();
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const formatStudentsForCourse = (targetCourseId: string) => {
+    const courseModuleIds = new Set(allDbModules?.filter((m: any) => String(m.course_id) === String(targetCourseId)).map((m: any) => String(m.id)) || []);
+    const courseLessons = allDbLessons?.filter((l: any) => courseModuleIds.has(String(l.module_id))) || [];
+    const courseLessonIds = new Set(courseLessons.map((l: any) => String(l.id)));
+    const totalLessons = courseLessons.length || 1;
+    const nowTime = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+
+    return dbStudents?.map((student: any) => {
+      const filteredScores = allScores?.filter((s: any) => 
+        s.student_id === student.id && 
+        (String(s.course_id) === String(targetCourseId) || courseLessonIds.has(String(s.lesson_id)))
+      ) || [];
   
-  // Format real students
-  const students = dbStudents?.map((student: any) => {
-    // If course_id is missing on old scores, we can fallback to checking lesson_id
-    const filteredScores = allScores?.filter((s: any) => 
-      s.student_id === student.id && 
-      (String(s.course_id) === String(activeCourseId) || courseLessonIds.has(String(s.lesson_id)))
-    ) || [];
-
-    const preTestScore = filteredScores.find((s: any) => s.exam_type === 'pre-test');
-    const postTestScore = filteredScores.find((s: any) => s.exam_type === 'post-test');
-    
-    // Calculate Quiz and Assignment scores
-    const quizScores = filteredScores.filter((s: any) => s.exam_type === 'quiz' && s.status === 'graded');
-    const totalQuizScore = quizScores.reduce((sum: number, s: any) => sum + (s.score || 0), 0);
-    const totalQuizMax = quizScores.reduce((sum: number, s: any) => sum + (s.total_score || 0), 0);
-    const quizText = quizScores.length > 0 ? `${totalQuizScore}/${totalQuizMax}` : "-";
-
-    const studentAssignmentsList = allAssignments.filter((a: any) => a.student_id === student.id && a.score !== null && courseLessonIds.has(String(a.lesson_id)));
-    const totalAssignmentScore = studentAssignmentsList.reduce((sum: number, a: any) => sum + (a.score || 0), 0);
-    const assignmentText = studentAssignmentsList.length > 0 ? `${totalAssignmentScore}` : "-";
-    
-    // Calculate progress based on unique lesson interactions (progress + scores + assignments)
-    // Exclude failed post-test from progress
-    const failedPostTestIds = new Set<string>();
-    const passedScoresIds: string[] = [];
-
-    filteredScores.forEach((s: any) => {
-      const lid = String(s.lesson_id);
-      const isPost = s.exam_type === 'post-test';
-      const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
-      if (isPost) {
-        if (pct >= 50 && s.status !== 'pending') {
-          passedScoresIds.push(lid);
+      const preTestScore = filteredScores.find((s: any) => s.exam_type === 'pre-test');
+      const postTestScore = filteredScores.find((s: any) => s.exam_type === 'post-test');
+      
+      const quizScores = filteredScores.filter((s: any) => s.exam_type === 'quiz' && s.status === 'graded');
+      const totalQuizScore = quizScores.reduce((sum: number, s: any) => sum + (s.score || 0), 0);
+      const totalQuizMax = quizScores.reduce((sum: number, s: any) => sum + (s.total_score || 0), 0);
+      const quizText = quizScores.length > 0 ? `${totalQuizScore}/${totalQuizMax}` : "-";
+  
+      const studentAssignmentsList = allAssignments.filter((a: any) => a.student_id === student.id && a.score !== null && courseLessonIds.has(String(a.lesson_id)));
+      const totalAssignmentScore = studentAssignmentsList.reduce((sum: number, a: any) => sum + (a.score || 0), 0);
+      const assignmentText = studentAssignmentsList.length > 0 ? `${totalAssignmentScore}` : "-";
+      
+      const failedPostTestIds = new Set<string>();
+      const passedScoresIds: string[] = [];
+  
+      filteredScores.forEach((s: any) => {
+        const lid = String(s.lesson_id);
+        const isPost = s.exam_type === 'post-test';
+        const pct = s.total_score > 0 ? (s.score / s.total_score) * 100 : 0;
+        if (isPost) {
+          if (pct >= 50 && s.status !== 'pending') {
+            passedScoresIds.push(lid);
+          } else {
+            failedPostTestIds.add(lid);
+          }
         } else {
-          failedPostTestIds.add(lid);
+          if (s.status !== 'pending') {
+            passedScoresIds.push(lid);
+          }
         }
-      } else {
-        if (s.status !== 'pending') {
-          passedScoresIds.push(lid);
-        }
-      }
-    });
-
-    const studentCompletedLessonsSet = new Set([
-      ...allProgress.filter((p: any) => p.student_id === student.id && (String(p.course_id) === String(activeCourseId) || courseLessonIds.has(String(p.lesson_id)))).map((p: any) => String(p.lesson_id)).filter(id => !failedPostTestIds.has(id)),
-      ...passedScoresIds,
-      ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => String(a.lesson_id))
-    ].filter(Boolean)); // filter out null/undefined
-    
-    const isPostTestPassed = postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false;
-    const studentCertificates = allCertificates?.filter((c: any) => c.student_id === student.id && String(c.course_id) === String(activeCourseId)) || [];
-    const hasCertificate = studentCertificates.length > 0;
-    
-    // Check assignments
-    const courseAssignments = courseLessons.filter(l => l.type === 'assignment');
-    const hasRequiredAssignments = courseAssignments.length > 0;
-    const hasSubmittedAllAssignments = !hasRequiredAssignments || courseAssignments.every(a => 
-      allAssignments.some((sa: any) => sa.student_id === student.id && String(sa.lesson_id) === String(a.id))
-    );
-    
-    let calculatedProgress = Math.round((studentCompletedLessonsSet.size / totalLessons) * 100);
-    // If they have a certificate OR passed the post-test AND submitted assignments, they are effectively 100% complete
-    if (hasCertificate || (isPostTestPassed && hasSubmittedAllAssignments)) {
-      calculatedProgress = 100;
-    }
-    const progress = Math.min(100, calculatedProgress);
-    
-    // Calculate last active & real-time status
-    let lastActive = "ยังไม่เคยเข้าเรียน";
-    let status = "Not Started";
-    let statusLabel = "ยังไม่เริ่มเรียน";
-    let statusColor = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
-
-    const allActivityDates = [
-      ...filteredScores.map((s: any) => new Date(s.created_at).getTime()),
-      ...allProgress.filter((p: any) => p.student_id === student.id && (String(p.course_id) === String(activeCourseId) || courseLessonIds.has(String(p.lesson_id)))).map((p: any) => new Date(p.created_at).getTime()),
-      ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => new Date(a.created_at).getTime())
-    ].filter(Boolean);
-    
-    if (allActivityDates.length > 0) {
-      const maxTime = Math.max(...allActivityDates);
-      const maxDate = new Date(maxTime);
-      lastActive = maxDate.toLocaleDateString('th-TH', { 
-        timeZone: 'Asia/Bangkok',
-        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
       });
-
-      if (progress >= 100 && (!postTestScore || isPostTestPassed) && hasSubmittedAllAssignments) {
-        status = "Completed";
-        statusLabel = "เรียนจบแล้ว";
-        statusColor = "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800";
-      } else if (nowTime - maxTime < sevenDaysMs) {
-        status = "Active";
-        statusLabel = "กำลังเรียน";
-        statusColor = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-      } else {
-        status = "Inactive";
-        statusLabel = "ขาดการติดต่อ";
-        statusColor = "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+  
+      const studentCompletedLessonsSet = new Set([
+        ...allProgress.filter((p: any) => p.student_id === student.id && (String(p.course_id) === String(targetCourseId) || courseLessonIds.has(String(p.lesson_id)))).map((p: any) => String(p.lesson_id)).filter((id: string) => !failedPostTestIds.has(id)),
+        ...passedScoresIds,
+        ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => String(a.lesson_id))
+      ].filter(Boolean));
+      
+      const isPostTestPassed = postTestScore ? ((postTestScore.score / (postTestScore.total_score || 1)) >= 0.5) : false;
+      const studentCertificates = allCertificates?.filter((c: any) => c.student_id === student.id && String(c.course_id) === String(targetCourseId)) || [];
+      const hasCertificate = studentCertificates.length > 0;
+      
+      const courseAssignments = courseLessons.filter((l: any) => l.type === 'assignment');
+      const hasRequiredAssignments = courseAssignments.length > 0;
+      const hasSubmittedAllAssignments = !hasRequiredAssignments || courseAssignments.every((a: any) => 
+        allAssignments.some((sa: any) => sa.student_id === student.id && String(sa.lesson_id) === String(a.id))
+      );
+      
+      let calculatedProgress = Math.round((studentCompletedLessonsSet.size / totalLessons) * 100);
+      if (hasCertificate || (isPostTestPassed && hasSubmittedAllAssignments)) {
+        calculatedProgress = 100;
       }
-    }
-    
-    return {
-      id: student.id,
-      name: student.full_name || "ไม่ระบุชื่อ",
-      email: student.email,
-      progress: progress,
-      lastActive,
-      status,
-      statusLabel,
-      statusColor,
-      preTest: preTestScore ? `${preTestScore.score}/${preTestScore.total_score}` : "-",
-      preTestId: preTestScore?.lesson_id,
-      preTestStatus: preTestScore?.status,
-      postTest: postTestScore ? `${postTestScore.score}/${postTestScore.total_score}` : "-",
-      postTestId: postTestScore?.lesson_id,
-      postTestStatus: postTestScore?.status,
-      postTestPassed: isPostTestPassed,
-      quiz: quizText,
-      assignment: assignmentText,
-      hasSubmittedAllAssignments,
-      avatar_url: student.avatar_url || "",
-      studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : "",
-      hasCertificate: hasCertificate,
-      certificates: studentCertificates,
-      isHidden: hiddenStudentIds.includes(student.id)
-    };
-  }) || [];
+      const progress = Math.min(100, calculatedProgress);
+      
+      let lastActive = "ยังไม่เคยเข้าเรียน";
+      let status = "Not Started";
+      let statusLabel = "ยังไม่เริ่มเรียน";
+      let statusColor = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+  
+      const allActivityDates = [
+        ...filteredScores.map((s: any) => new Date(s.created_at).getTime()),
+        ...allProgress.filter((p: any) => p.student_id === student.id && (String(p.course_id) === String(targetCourseId) || courseLessonIds.has(String(p.lesson_id)))).map((p: any) => new Date(p.created_at).getTime()),
+        ...allAssignments.filter((a: any) => a.student_id === student.id && courseLessonIds.has(String(a.lesson_id))).map((a: any) => new Date(a.created_at).getTime())
+      ].filter(Boolean);
+      
+      if (allActivityDates.length > 0) {
+        const maxTime = Math.max(...allActivityDates);
+        const maxDate = new Date(maxTime);
+        lastActive = maxDate.toLocaleDateString('th-TH', { 
+          timeZone: 'Asia/Bangkok',
+          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+        });
+  
+        if (progress >= 100 && (!postTestScore || isPostTestPassed) && hasSubmittedAllAssignments) {
+          status = "Completed";
+          statusLabel = "เรียนจบแล้ว";
+          statusColor = "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800";
+        } else if (nowTime - maxTime < sevenDaysMs) {
+          status = "Active";
+          statusLabel = "กำลังเรียน";
+          statusColor = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+        } else {
+          status = "Inactive";
+          statusLabel = "ขาดการติดต่อ";
+          statusColor = "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+        }
+      }
+      
+      return {
+        id: student.id,
+        name: student.full_name || "ไม่ระบุชื่อ",
+        email: student.email,
+        progress: progress,
+        lastActive,
+        status,
+        statusLabel,
+        statusColor,
+        preTest: preTestScore ? `${preTestScore.score}/${preTestScore.total_score}` : "-",
+        preTestId: preTestScore?.lesson_id,
+        preTestStatus: preTestScore?.status,
+        postTest: postTestScore ? `${postTestScore.score}/${postTestScore.total_score}` : "-",
+        postTestId: postTestScore?.lesson_id,
+        postTestStatus: postTestScore?.status,
+        postTestPassed: isPostTestPassed,
+        quiz: quizText,
+        assignment: assignmentText,
+        hasSubmittedAllAssignments,
+        avatar_url: student.avatar_url || "",
+        studentIdNum: student.email ? student.email.split('@')[0].replace(/\D/g, '') : "",
+        hasCertificate: hasCertificate,
+        certificates: studentCertificates,
+        isHidden: hiddenStudentIds.includes(student.id)
+      };
+    }) || [];
+  };
 
+  const students = formatStudentsForCourse(activeCourseId);
+  const allCoursesData = courses.map((c: any) => ({
+    courseTitle: c.title,
+    students: formatStudentsForCourse(String(c.id)).filter((s: any) => !s.isHidden)
+  }));
   // Filter out hidden students if showHidden is false
   let displayStudents = students;
   if (!showHidden) {
@@ -272,8 +272,7 @@ export default async function AdminStudentsPage(props: { searchParams?: any }) {
             courseTitle={courses?.find((c: any) => String(c.id) === String(activeCourseId))?.title} 
           />
           <ExportResearchReportButton 
-            students={filteredStudents} 
-            courseTitle={courses?.find((c: any) => String(c.id) === String(activeCourseId))?.title} 
+            allCoursesData={allCoursesData} 
           />
         </div>
       </div>

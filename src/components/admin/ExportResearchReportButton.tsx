@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Download, Loader2, FileSpreadsheet } from "lucide-react";
@@ -13,15 +14,14 @@ import {
 } from "@/utils/excel-styler";
 
 interface ExportResearchReportButtonProps {
-  students: any[];
-  courseTitle?: string;
+  allCoursesData: { courseTitle: string; students: any[] }[];
 }
 
-export default function ExportResearchReportButton({ students = [], courseTitle }: ExportResearchReportButtonProps) {
+export default function ExportResearchReportButton({ allCoursesData = [] }: ExportResearchReportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
-    if (!students || students.length === 0) {
+    if (!allCoursesData || allCoursesData.length === 0) {
       toast.warning("ไม่มีข้อมูลนักเรียนสำหรับส่งออก");
       return;
     }
@@ -32,89 +32,105 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
       const res = await fetch('/api/survey?mode=analytics');
       if (!res.ok) throw new Error("Failed to fetch survey analytics");
       const surveyData = await res.json();
-      const submissions = surveyData.submissions || [];
-      const config = surveyData.config || {};
+      const submissions = surveyData.respondentsList || [];
+      const config = surveyData.config || surveyData;
 
       const wb = createLMSWorkbook("สรุปค่างานวิจัยในชั้นเรียน");
-      const safeCourseTitle = courseTitle || "รวม";
 
       // ============================================================================
-      // SHEET 1: คะแนนนักศึกษา (Student Scores)
+      // SHEET 1-N: คะแนนนักศึกษาแต่ละรายวิชา
       // ============================================================================
-      const wsScores = wb.addWorksheet(`คะแนน ${safeCourseTitle.slice(0,20)}`, { views: [{ showGridLines: true }] });
+      let globalScoreDataStart = 0;
+      let globalScoreDataEnd = 0;
+      let firstScoreSheetName = "";
       
-      let nextRow = addHeaderBanner(wsScores, {
-        title: "สรุปผลสัมฤทธิ์ทางการเรียน (Student Scores)",
-        subtitle: `รายวิชา: ${safeCourseTitle}`,
-        infoList: [`จำนวนนักศึกษา: ${students.length} คน`],
-        totalCols: 10,
-        theme: "navy",
-      });
+      const allStudentsInAllCourses = allCoursesData.flatMap(c => c.students);
 
-      const getFullScoreText = (key: string) => {
-        const st = students.find(s => s[key] && s[key] !== "-");
-        if (!st) return "";
-        const parts = st[key].split("/");
-        return parts.length > 1 ? `\n(เต็ม ${parts[1]})` : "";
-      };
-      
-      const preMax = getFullScoreText("preTest");
-      const postMax = getFullScoreText("postTest");
-      const quizMax = getFullScoreText("quiz");
-      const assignMax = getFullScoreText("assignment");
+      allCoursesData.forEach((course, courseIdx) => {
+        const students = course.students;
+        const safeCourseTitle = course.courseTitle || `บทที่ ${courseIdx + 1}`;
+        
+        const wsScores = wb.addWorksheet(`คะแนน ${safeCourseTitle.slice(0,20)}`, { views: [{ showGridLines: true }] });
+        if (courseIdx === 0) firstScoreSheetName = `'คะแนน ${safeCourseTitle.slice(0,20)}'`;
+        
+        const nextRow = addHeaderBanner(wsScores, {
+          title: "สรุปผลสัมฤทธิ์ทางการเรียน (Student Scores)",
+          subtitle: `รายวิชา: ${safeCourseTitle}`,
+          infoList: [`จำนวนนักศึกษา: ${students.length} คน`],
+          totalCols: 10,
+          theme: "navy",
+        });
 
-      const scoreColumns: ColumnDefinition[] = [
-        { header: "ลำดับ", width: 8, align: "center" },
-        { header: "รหัสนักศึกษา", width: 16, align: "center" },
-        { header: "ชื่อ - นามสกุล", width: 28, align: "left" },
-        { header: "ความก้าวหน้า", width: 15, align: "center", isPercent: true },
-        { header: `คะแนนก่อนเรียน\n(Pre-test)${preMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
-        { header: `คะแนนหลังเรียน\n(Post-test)${postMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
-        { header: "พัฒนาการ\n(Gain Score)", width: 15, align: "center", wrapText: true, numFmt: "+0.0;-0.0;0" },
-        { header: `แบบทดสอบย่อย\n(Quizzes)${quizMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
-        { header: `คะแนนใบงาน\n(Assignments)${assignMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
-        { header: "สถานะผู้เรียน", width: 16, align: "center" },
-      ];
+        const getFullScoreText = (key: string) => {
+          const st = students.find((s: any) => s[key] && s[key] !== "-");
+          if (!st) return "";
+          const parts = st[key].split("/");
+          return parts.length > 1 ? `\n(เต็ม ${parts[1]})` : "";
+        };
+        
+        const preMax = getFullScoreText("preTest");
+        const postMax = getFullScoreText("postTest");
+        const quizMax = getFullScoreText("quiz");
+        const assignMax = getFullScoreText("assignment");
 
-      const dataStartRow = nextRow + 1; // since formatStyledTable usually starts at nextRow+1 if no KPI cards
-      const parseScore = (str: string) => {
-        if (!str || str === "-") return "-";
-        const parts = str.split("/");
-        const score = parseFloat(parts[0]);
-        return isNaN(score) ? "-" : score;
-      };
-      const scoreRows = students.map((s, idx) => {
-        const rowNum = dataStartRow + idx;
-        return [
-          idx + 1,
-          s.studentIdNum || "-",
-          s.name || "ไม่ระบุชื่อ",
-          (Number(s.progress) || 0) / 100,
-          parseScore(s.preTest),
-          parseScore(s.postTest),
-          { formula: `IFERROR(F${rowNum}-E${rowNum}, "-")` },
-          parseScore(s.quiz),
-          parseScore(s.assignment),
-          s.statusLabel || "ยังไม่เริ่มเรียน",
+        const scoreColumns: ColumnDefinition[] = [
+          { header: "ลำดับ", width: 8, align: "center" },
+          { header: "รหัสนักศึกษา", width: 16, align: "center" },
+          { header: "ชื่อ - นามสกุล", width: 28, align: "left" },
+          { header: "ความก้าวหน้า", width: 15, align: "center", isPercent: true },
+          { header: `คะแนนก่อนเรียน\n(Pre-test)${preMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
+          { header: `คะแนนหลังเรียน\n(Post-test)${postMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
+          { header: "พัฒนาการ\n(Gain Score)", width: 15, align: "center", wrapText: true, numFmt: "+0.0;-0.0;0" },
+          { header: `แบบทดสอบย่อย\n(Quizzes)${quizMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
+          { header: `คะแนนใบงาน\n(Assignments)${assignMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
+          { header: "สถานะผู้เรียน", width: 16, align: "center" },
         ];
-      });
 
-      formatStyledTable(wsScores, {
-        startRow: nextRow,
-        columns: scoreColumns,
-        data: scoreRows,
-        statusColumnIndex: 9,
-        freezeHeader: true,
-      });
+        const dataStartRow = nextRow + 1;
+        const parseScore = (str: string) => {
+          if (!str || str === "-") return "-";
+          const parts = str.split("/");
+          const score = parseFloat(parts[0]);
+          return isNaN(score) ? "-" : score;
+        };
+        
+        const scoreRows = students.map((s: any, idx: number) => {
+          const rowNum = dataStartRow + idx;
+          return [
+            idx + 1,
+            s.studentIdNum || "-",
+            s.name || "ไม่ระบุชื่อ",
+            (Number(s.progress) || 0) / 100,
+            parseScore(s.preTest),
+            parseScore(s.postTest),
+            { formula: `IFERROR(F${rowNum}-E${rowNum}, "-")` },
+            parseScore(s.quiz),
+            parseScore(s.assignment),
+            s.statusLabel || "ยังไม่เริ่มเรียน",
+          ];
+        });
 
-      const scoreDataStart = dataStartRow;
-      const scoreDataEnd = dataStartRow + students.length - 1;
+        formatStyledTable(wsScores, {
+          startRow: nextRow,
+          columns: scoreColumns,
+          data: scoreRows,
+          statusColumnIndex: 9,
+          freezeHeader: true,
+        });
+
+        if (courseIdx === 0) {
+          globalScoreDataStart = dataStartRow;
+          globalScoreDataEnd = dataStartRow + Math.max(0, students.length - 1);
+        }
+      });
+      
+      const safeCourseTitle = "รวม";
 
       // ============================================================================
       // SHEET 2: แบบประเมินความพึงพอใจ (Raw Survey Data)
       // ============================================================================
       const wsSurvey = wb.addWorksheet("แบบประเมินความพึงพอใจ", { views: [{ showGridLines: true }], properties: { tabColor: { argb: "FF059669" } } });
-      nextRow = addHeaderBanner(wsSurvey, {
+      let nextRow = addHeaderBanner(wsSurvey, {
         title: "ข้อมูลดิบแบบประเมินความพึงพอใจ",
         subtitle: `รายวิชา: ${safeCourseTitle}`,
         infoList: [`จำนวนผู้ตอบ: ${submissions.length} คน`],
@@ -151,12 +167,12 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
         colIdx++;
       });
       surveyCols.push({ header: `เฉลี่ยรวม`, width: 15, align: "center", wrapText: true, isNumber: true });
-      const surveyColTotal = colIdx;
 
       const surveyDataStartRow = nextRow + 1;
       const surveyRows = submissions.map((sub: any, idx: number) => {
+        const studentIdNum = sub.email ? sub.email.split('@')[0].replace(/\D/g, '') : '-';
         const rowNum = surveyDataStartRow + idx;
-        const rowData: any[] = [idx + 1, sub.studentIdNum, sub.name];
+        const rowData: any[] = [idx + 1, studentIdNum || "-", sub.name];
         
         surveyDims.forEach((dim: any) => {
           const dimQCols: string[] = [];
@@ -185,7 +201,7 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
         data: surveyRows,
         freezeHeader: true,
       });
-      const surveyDataEndRow = surveyDataStartRow + submissions.length - 1;
+      const surveyDataEndRow = surveyDataStartRow + Math.max(0, submissions.length - 1);
 
       // ============================================================================
       // SHEET 3: สรุปหาค่า E1E2
@@ -193,7 +209,7 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
       const wsE1E2 = wb.addWorksheet("สรุปหาค่า E1-E2", { views: [{ showGridLines: true }], properties: { tabColor: { argb: "FFD97706" } } });
       
       const getMaxScoreValue = (key: string) => {
-        const st = students.find(s => s[key] && s[key] !== "-");
+        const st = allStudentsInAllCourses.find((s: any) => s[key] && s[key] !== "-");
         if (!st) return 1;
         const parts = st[key].split("/");
         return parts.length > 1 ? parseFloat(parts[1]) || 1 : 1;
@@ -217,18 +233,16 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
         { header: "หมายเหตุ", width: 30, align: "left" },
       ];
       
-      const scoreSheetName = `'คะแนน ${safeCourseTitle.slice(0,20)}'`;
-      
       const e1e2Rows = [
         [
           "คะแนนระหว่างเรียน (E1)", 
-          { formula: `IFERROR(AVERAGE(${scoreSheetName}!H${scoreDataStart}:H${scoreDataEnd}), 0)` }, 
+          { formula: `IFERROR(AVERAGE(${firstScoreSheetName}!H${globalScoreDataStart}:H${globalScoreDataEnd}), 0)` }, 
           { formula: `IFERROR((B${nextRow+1}/${quizMaxNum})*100, 0)` }, 
           `คะแนนเต็ม ${quizMaxNum}`
         ],
         [
           "คะแนนหลังเรียน (E2)", 
-          { formula: `IFERROR(AVERAGE(${scoreSheetName}!F${scoreDataStart}:F${scoreDataEnd}), 0)` }, 
+          { formula: `IFERROR(AVERAGE(${firstScoreSheetName}!F${globalScoreDataStart}:F${globalScoreDataEnd}), 0)` }, 
           { formula: `IFERROR((B${nextRow+2}/${postMaxNum})*100, 0)` }, 
           `คะแนนเต็ม ${postMaxNum}`
         ],
@@ -266,23 +280,23 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
       const prePostRows = [
         [
           "คะแนนก่อนเรียน (Pre-test)", 
-          students.length,
-          { formula: `IFERROR(AVERAGE(${scoreSheetName}!E${scoreDataStart}:E${scoreDataEnd}), 0)` }, 
-          { formula: `IFERROR(STDEV.S(${scoreSheetName}!E${scoreDataStart}:E${scoreDataEnd}), 0)` },
+          allStudentsInAllCourses.length > 0 ? allCoursesData[0].students.length : 0,
+          { formula: `IFERROR(AVERAGE(${firstScoreSheetName}!E${globalScoreDataStart}:E${globalScoreDataEnd}), 0)` }, 
+          { formula: `IFERROR(STDEV.S(${firstScoreSheetName}!E${globalScoreDataStart}:E${globalScoreDataEnd}), 0)` },
           { formula: `IFERROR((C${nextRow+1}/${preMaxNum})*100, 0)` }
         ],
         [
           "คะแนนหลังเรียน (Post-test)", 
-          students.length,
-          { formula: `IFERROR(AVERAGE(${scoreSheetName}!F${scoreDataStart}:F${scoreDataEnd}), 0)` }, 
-          { formula: `IFERROR(STDEV.S(${scoreSheetName}!F${scoreDataStart}:F${scoreDataEnd}), 0)` },
+          allStudentsInAllCourses.length > 0 ? allCoursesData[0].students.length : 0,
+          { formula: `IFERROR(AVERAGE(${firstScoreSheetName}!F${globalScoreDataStart}:F${globalScoreDataEnd}), 0)` }, 
+          { formula: `IFERROR(STDEV.S(${firstScoreSheetName}!F${globalScoreDataStart}:F${globalScoreDataEnd}), 0)` },
           { formula: `IFERROR((C${nextRow+2}/${postMaxNum})*100, 0)` }
         ],
         [
           "คะแนนพัฒนาการ (Gain Score)", 
-          students.length,
-          { formula: `IFERROR(AVERAGE(${scoreSheetName}!G${scoreDataStart}:G${scoreDataEnd}), 0)` }, 
-          { formula: `IFERROR(STDEV.S(${scoreSheetName}!G${scoreDataStart}:G${scoreDataEnd}), 0)` },
+          allStudentsInAllCourses.length > 0 ? allCoursesData[0].students.length : 0,
+          { formula: `IFERROR(AVERAGE(${firstScoreSheetName}!G${globalScoreDataStart}:G${globalScoreDataEnd}), 0)` }, 
+          { formula: `IFERROR(STDEV.S(${firstScoreSheetName}!G${globalScoreDataStart}:G${globalScoreDataEnd}), 0)` },
           { formula: `IFERROR(C${nextRow+2}-C${nextRow+1}, 0)` }
         ]
       ];
@@ -320,7 +334,6 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
       
       let sumRowIdx = nextRow + 1;
       surveyDims.forEach((dim: any, dIdx: number) => {
-        // Dimension Header
         surveySumRows.push([
           `ด้านที่ ${dIdx+1}`,
           dim.title,
@@ -331,7 +344,6 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
         ]);
         sumRowIdx++;
 
-        // Items
         dim.questions.forEach((q: any, qIdx: number) => {
           const cLet = questionCols[q.id];
           surveySumRows.push([
@@ -352,10 +364,8 @@ export default function ExportResearchReportButton({ students = [], courseTitle 
         data: surveySumRows,
       });
 
-      // 7. Save and Download
-      const safeCourse = safeCourseTitle.slice(0, 20).replace(/[\\/:*?"<>|]/g, "_");
       const dateStr = new Date().toISOString().split("T")[0];
-      const fileName = `สรุปค่างานวิจัยในชั้นเรียน_${safeCourse}_${dateStr}.xlsx`;
+      const fileName = `สรุปค่างานวิจัยในชั้นเรียน_รวม_${dateStr}.xlsx`;
 
       await downloadWorkbook(wb, fileName);
       toast.success("ส่งออกรายงานสรุปงานวิจัยสำเร็จ");
