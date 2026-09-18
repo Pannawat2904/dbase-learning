@@ -297,19 +297,23 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
 
       // 2. Summary KPI Metrics
       const totalItems = stats.length;
-      const acceptableCount = stats.filter(s => s.isAcceptable).length;
-      const revisionCount = totalItems - acceptableCount;
-      const avgP = totalItems > 0 ? stats.reduce((acc, s) => acc + (s.p || 0), 0) / totalItems : 0;
-      const avgR = totalItems > 0 ? stats.reduce((acc, s) => acc + (s.r || 0), 0) / totalItems : 0;
+      const dataStartRow = 10;
+      const dataEndRow = 9 + totalItems;
+      const isDataEmpty = totalItems === 0;
+
+      const acceptableCountVal = isDataEmpty ? "0 ข้อ" : { formula: `COUNTIF(J${dataStartRow}:J${dataEndRow}, "คุณภาพดี (นำไปใช้ได้)") & " ข้อ"` };
+      const revisionCountVal = isDataEmpty ? "0 ข้อ" : { formula: `${totalItems}-COUNTIF(J${dataStartRow}:J${dataEndRow}, "คุณภาพดี (นำไปใช้ได้)") & " ข้อ"` };
+      const avgPVal = isDataEmpty ? "0.00" : { formula: `ROUND(IFERROR(AVERAGE(F${dataStartRow}:F${dataEndRow}), 0), 2)` };
+      const avgRVal = isDataEmpty ? "0.00" : { formula: `ROUND(IFERROR(AVERAGE(H${dataStartRow}:H${dataEndRow}), 0), 2)` };
 
       const tableStartRow = addKpiCards(
         ws,
         [
           { label: "📝 ข้อสอบทั้งหมด", value: `${totalItems} ข้อ`, sublabel: "ในรายวิชานี้", colorType: "blue" },
-          { label: "✅ คุณภาพดี (ใช้ได้)", value: `${acceptableCount} ข้อ`, sublabel: `${((acceptableCount / totalItems) * 100).toFixed(1)}% ของทั้งหมด`, colorType: "emerald" },
-          { label: "⚠️ ควรปรับปรุง", value: `${revisionCount} ข้อ`, sublabel: `${((revisionCount / totalItems) * 100).toFixed(1)}% ของทั้งหมด`, colorType: "amber" },
-          { label: "🎯 ค่าความยากเฉลี่ย (p)", value: avgP.toFixed(2), sublabel: "0.20 - 0.80 คือเกณฑ์ดี", colorType: "purple" },
-          { label: "⚖️ ค่าอำนาจจำแนกเฉลี่ย (r)", value: avgR.toFixed(2), sublabel: ">= 0.20 คือจำแนกได้", colorType: "blue" },
+          { label: "✅ คุณภาพดี (ใช้ได้)", value: acceptableCountVal, sublabel: `คำนวณจากข้อสอบทั้งหมด`, colorType: "emerald" },
+          { label: "⚠️ ควรปรับปรุง", value: revisionCountVal, sublabel: `คำนวณจากข้อสอบทั้งหมด`, colorType: "amber" },
+          { label: "🎯 ค่าความยากเฉลี่ย (p)", value: avgPVal, sublabel: "0.20 - 0.80 คือเกณฑ์ดี", colorType: "purple" },
+          { label: "⚖️ ค่าอำนาจจำแนกเฉลี่ย (r)", value: avgRVal, sublabel: ">= 0.20 คือจำแนกได้", colorType: "blue" },
         ],
         nextRow
       );
@@ -329,18 +333,21 @@ export default function ItemAnalysisReport({ courseId }: ItemAnalysisReportProps
       ];
 
       // 4. Data Rows
-      const rows = stats.map((s, idx) => [
-        idx + 1,
-        s.text.replace(/<[^>]*>?/gm, "").trim(),
-        s.lessonTitle || "-",
-        s.totalAttempts || 0,
-        s.correctAttempts || 0,
-        Number(s.p) || 0,
-        s.pLabel || "-",
-        Number(s.r) || 0,
-        s.rLabel || "-",
-        s.isAcceptable ? "คุณภาพดี (นำไปใช้ได้)" : "ควรปรับปรุงข้อสอบ",
-      ]);
+      const rows = stats.map((s, idx) => {
+        const rowNum = dataStartRow + idx;
+        return [
+          idx + 1,
+          s.text.replace(/<[^>]*>?/gm, "").trim(),
+          s.lessonTitle || "-",
+          s.totalAttempts || 0,
+          s.correctAttempts || 0,
+          { formula: `IFERROR(E${rowNum}/D${rowNum}, 0)` },
+          { formula: `IF(F${rowNum}>0.80, "ง่ายเกินไป (> 0.80)", IF(F${rowNum}<0.20, "ยากเกินไป (< 0.20)", "เหมาะสม (0.20 - 0.80)"))` },
+          Number(s.r) || 0,
+          { formula: `IF(H${rowNum}>=0.40, "จำแนกได้ดีมาก (≥ 0.40)", IF(H${rowNum}>=0.30, "จำแนกได้ดี (0.30 - 0.39)", IF(H${rowNum}>=0.20, "พอใช้/ยอมรับได้ (0.20 - 0.29)", "ควรปรับปรุง (< 0.20)")))` },
+          { formula: `IF(AND(F${rowNum}>=0.2, F${rowNum}<=0.8, H${rowNum}>=0.2), "คุณภาพดี (นำไปใช้ได้)", "ควรปรับปรุงข้อสอบ")` },
+        ];
+      });
 
       // 5. Format Table
       formatStyledTable(ws, {

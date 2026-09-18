@@ -44,10 +44,11 @@ export default function ExportExcelButton({ students = [], courseTitle }: Export
 
       // 2. Compute KPI Metrics
       const totalStudents = students.length;
-      const avgProgress = totalStudents > 0
-        ? (students.reduce((acc, s) => acc + (Number(s.progress) || 0), 0) / totalStudents).toFixed(1)
-        : "0.0";
+      const dataStartRow = 10;
+      const dataEndRow = 9 + totalStudents;
+      const isDataEmpty = totalStudents === 0;
       
+      const avgProgressVal = isDataEmpty ? "0.0%" : { formula: `IFERROR(TEXT(AVERAGE(E${dataStartRow}:E${dataEndRow}), "0.0%"), "0.0%")` };
       const completedCount = students.filter(s => s.status === "Completed" || (s.progress >= 100)).length;
       const activeCount = students.filter(s => s.status === "Active" || s.statusLabel === "กำลังเรียน").length;
       const certificateCount = students.filter(s => s.hasCertificate).length;
@@ -57,7 +58,7 @@ export default function ExportExcelButton({ students = [], courseTitle }: Export
         ws,
         [
           { label: "👥 นักศึกษาทั้งหมด", value: `${totalStudents} คน`, sublabel: "ลงทะเบียนในระบบ", colorType: "blue" },
-          { label: "📈 ความก้าวหน้าเฉลี่ย", value: `${avgProgress}%`, sublabel: "ภาพรวมทั้งห้อง", colorType: "emerald" },
+          { label: "📈 ความก้าวหน้าเฉลี่ย", value: avgProgressVal, sublabel: "ภาพรวมทั้งห้อง", colorType: "emerald" },
           { label: "🏆 เรียนจบหลักสูตร", value: `${completedCount} คน`, sublabel: "ผ่านเกณฑ์การเรียน", colorType: "purple" },
           { label: "🟢 กำลังเรียน (Active)", value: `${activeCount} คน`, sublabel: "เข้าเรียนสม่ำเสมอ", colorType: "blue" },
           { label: "🎓 ได้รับประกาศนียบัตร", value: `${certificateCount} คน`, sublabel: "ออกใบรับรองแล้ว", colorType: "emerald" },
@@ -66,17 +67,29 @@ export default function ExportExcelButton({ students = [], courseTitle }: Export
       );
 
       // 4. Define Table Columns
+      const getFullScoreText = (key: string) => {
+        const st = students.find(s => s[key] && s[key] !== "-");
+        if (!st) return "";
+        const parts = st[key].split("/");
+        return parts.length > 1 ? `\n(เต็ม ${parts[1]})` : "";
+      };
+      
+      const preMax = getFullScoreText("preTest");
+      const postMax = getFullScoreText("postTest");
+      const quizMax = getFullScoreText("quiz");
+      const assignMax = getFullScoreText("assignment");
+
       const columns: ColumnDefinition[] = [
         { header: "ลำดับ", width: 8, align: "center" },
         { header: "รหัสนักศึกษา", width: 16, align: "center" },
         { header: "ชื่อ - นามสกุล", width: 28, align: "left" },
         { header: "อีเมล", width: 28, align: "left" },
-        { header: "ความก้าวหน้า", width: 15, align: "center" },
-        { header: "คะแนนก่อนเรียน\n(Pre-test)", width: 16, align: "center", wrapText: true },
-        { header: "คะแนนหลังเรียน\n(Post-test)", width: 16, align: "center", wrapText: true },
-        { header: "พัฒนาการ\n(Gain Score)", width: 15, align: "center", wrapText: true },
-        { header: "แบบทดสอบย่อย\n(Quizzes)", width: 15, align: "center", wrapText: true },
-        { header: "คะแนนใบงาน\n(Assignments)", width: 15, align: "center", wrapText: true },
+        { header: "ความก้าวหน้า", width: 15, align: "center", isPercent: true },
+        { header: `คะแนนก่อนเรียน\n(Pre-test)${preMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
+        { header: `คะแนนหลังเรียน\n(Post-test)${postMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
+        { header: "พัฒนาการ\n(Gain Score)", width: 15, align: "center", wrapText: true, numFmt: "+0.0;-0.0;0" },
+        { header: `แบบทดสอบย่อย\n(Quizzes)${quizMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
+        { header: `คะแนนใบงาน\n(Assignments)${assignMax}`, width: 18, align: "center", wrapText: true, isNumber: true },
         { header: "สถานะผู้เรียน", width: 16, align: "center" },
         { header: "ใบประกาศนียบัตร", width: 16, align: "center" },
         { header: "เข้าเรียนล่าสุด", width: 22, align: "center" },
@@ -84,33 +97,28 @@ export default function ExportExcelButton({ students = [], courseTitle }: Export
 
       // 5. Build Table Data Rows
       const rows = students.map((s, idx) => {
-        // Calculate Gain Score if both pre and post test have scores
-        let gainScoreText = "-";
+        const rowNum = dataStartRow + idx;
         const parseScore = (str: string) => {
-          if (!str || str === "-") return null;
+          if (!str || str === "-") return "-";
           const parts = str.split("/");
           const score = parseFloat(parts[0]);
-          return isNaN(score) ? null : score;
+          return isNaN(score) ? "-" : score;
         };
 
         const preNum = parseScore(s.preTest);
         const postNum = parseScore(s.postTest);
-        if (preNum !== null && postNum !== null) {
-          const diff = postNum - preNum;
-          gainScoreText = diff >= 0 ? `+${diff.toFixed(1)}` : `${diff.toFixed(1)}`;
-        }
-
+        
         return [
           idx + 1,
           s.studentIdNum || "-",
           s.name || "ไม่ระบุชื่อ",
           s.email || "-",
-          `${s.progress || 0}%`,
-          s.preTest || "-",
-          s.postTest || "-",
-          gainScoreText,
-          s.quiz || "-",
-          s.assignment || "-",
+          (Number(s.progress) || 0) / 100,
+          preNum,
+          postNum,
+          { formula: `IFERROR(G${rowNum}-F${rowNum}, "-")` },
+          parseScore(s.quiz),
+          parseScore(s.assignment),
           s.statusLabel || "ยังไม่เริ่มเรียน",
           s.hasCertificate ? "มีประกาศนียบัตร" : "-",
           s.lastActive || "ยังไม่เคยเข้าเรียน",
